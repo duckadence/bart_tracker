@@ -1,24 +1,175 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 LED Control</title>
+
+  <title>Transit Tracker</title>
+
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+
   <main class="card">
-    <h1>ESP32 LED</h1>
-    <p id="status" class="status">Disconnected</p>
 
-    <button id="connect">Connect ESP32</button>
+    <h1>Transit Tracker</h1>
 
-    <div class="controls">
-      <button id="on" class="led-button" disabled>LED ON</button>
-      <button id="off" class="led-button" disabled>LED OFF</button>
-    </div>
+    <p id="status" class="status">
+      Disconnected
+    </p>
+
+    <button id="connect">
+      Connect ESP32
+    </button>
+
+
+    <section class="config">
+
+      <h2>Wi-Fi</h2>
+
+      <label for="wifi-ssid">
+        Network
+      </label>
+
+      <input
+        id="wifi-ssid"
+        type="text"
+        placeholder="Wi-Fi network"
+      >
+
+      <label for="wifi-password">
+        Password
+      </label>
+
+      <input
+        id="wifi-password"
+        type="password"
+        placeholder="Wi-Fi password"
+      >
+
+    </section>
+
+
+    <section class="config">
+
+      <h2>BART Stations</h2>
+
+      <label for="station-1">
+        Station 1
+      </label>
+
+      <select id="station-1">
+        <option value="">None</option>
+        <option value="12TH">12th St/Oakland City Center</option>
+        <option value="16TH">16th St Mission</option>
+        <option value="19TH">19th St Oakland</option>
+        <option value="24TH">24th St Mission</option>
+        <option value="ASHB">Ashby</option>
+        <option value="BALB">Balboa Park</option>
+        <option value="CIVC">Civic Center/UN Plaza</option>
+        <option value="DALY">Daly City</option>
+        <option value="EMBR">Embarcadero</option>
+        <option value="FRMT">Fremont</option>
+        <option value="GLEN">Glen Park</option>
+        <option value="LAFY">Lafayette</option>
+        <option value="LAKE">Lake Merritt</option>
+        <option value="MCAR">MacArthur</option>
+        <option value="MONT">Montgomery St</option>
+        <option value="NBRK">North Berkeley</option>
+        <option value="ORIN">Orinda</option>
+        <option value="PHIL">Pleasant Hill</option>
+        <option value="POWL">Powell St</option>
+        <option value="RICH">Richmond</option>
+        <option value="ROCK">Rockridge</option>
+        <option value="SBRN">San Bruno</option>
+        <option value="SFIA">San Francisco International Airport</option>
+        <option value="SSAN">South San Francisco</option>
+        <option value="UCTY">Union City</option>
+        <option value="WARM">Warm Springs/South Fremont</option>
+      </select>
+
+
+      <label for="station-2">
+        Station 2
+      </label>
+
+      <select id="station-2">
+        <option value="">None</option>
+        <option value="12TH">12th St/Oakland City Center</option>
+        <option value="16TH">16th St Mission</option>
+        <option value="19TH">19th St Oakland</option>
+        <option value="24TH">24th St Mission</option>
+        <option value="ASHB">Ashby</option>
+        <option value="BALB">Balboa Park</option>
+        <option value="CIVC">Civic Center/UN Plaza</option>
+        <option value="DALY">Daly City</option>
+        <option value="EMBR">Embarcadero</option>
+        <option value="FRMT">Fremont</option>
+        <option value="GLEN">Glen Park</option>
+        <option value="LAFY">Lafayette</option>
+        <option value="LAKE">Lake Merritt</option>
+        <option value="MCAR">MacArthur</option>
+        <option value="MONT">Montgomery St</option>
+        <option value="NBRK">North Berkeley</option>
+        <option value="ORIN">Orinda</option>
+        <option value="PHIL">Pleasant Hill</option>
+        <option value="POWL">Powell St</option>
+        <option value="RICH">Richmond</option>
+        <option value="ROCK">Rockridge</option>
+        <option value="SBRN">San Bruno</option>
+        <option value="SFIA">San Francisco International Airport</option>
+        <option value="SSAN">South San Francisco</option>
+        <option value="UCTY">Union City</option>
+        <option value="WARM">Warm Springs/South Fremont</option>
+      </select>
+
+
+      <label for="station-3">
+        Station 3
+      </label>
+
+      <select id="station-3">
+        <option value="">None</option>
+        <option value="12TH">12th St/Oakland City Center</option>
+        <option value="16TH">16th St Mission</option>
+        <option value="19TH">19th St Oakland</option>
+        <option value="24TH">24th St Mission</option>
+        <option value="ASHB">Ashby</option>
+        <option value="BALB">Balboa Park</option>
+        <option value="CIVC">Civic Center/UN Plaza</option>
+        <option value="DALY">Daly City</option>
+        <option value="EMBR">Embarcadero</option>
+        <option value="FRMT">Fremont</option>
+        <option value="GLEN">Glen Park</option>
+        <option value="LAFY">Lafayette</option>
+        <option value="LAKE">Lake Merritt</option>
+        <option value="MCAR">MacArthur</option>
+        <option value="MONT">Montgomery St</option>
+        <option value="NBRK">North Berkeley</option>
+        <option value="ORIN">Orinda</option>
+        <option value="PHIL">Pleasant Hill</option>
+        <option value="POWL">Powell St</option>
+        <option value="RICH">Richmond</option>
+        <option value="ROCK">Rockridge</option>
+        <option value="SBRN">San Bruno</option>
+        <option value="SFIA">San Francisco International Airport</option>
+        <option value="SSAN">South San Francisco</option>
+        <option value="UCTY">Union City</option>
+        <option value="WARM">Warm Springs/South Fremont</option>
+      </select>
+
+    </section>
+
+
+    <button id="save" disabled>
+      Save Configuration
+    </button>
+
   </main>
 
   <script src="app.js"></script>
+
 </body>
 </html>
