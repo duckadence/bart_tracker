@@ -8,35 +8,42 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
   font-family: Arial, sans-serif;
   background: #f2f4f7;
 }
 
 .card {
-  width: min(90%, 420px);
+  width: min(100%, 460px);
   padding: 32px;
-  text-align: center;
   background: white;
   border-radius: 18px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.10);
 }
 
 h1 {
-  margin-top: 0;
+  margin: 0;
+  text-align: center;
+}
+
+h2 {
+  margin: 28px 0 16px;
+  font-size: 20px;
 }
 
 .status {
   margin: 20px 0;
+  text-align: center;
   font-weight: bold;
 }
 
 button {
   width: 100%;
-  padding: 16px;
+  padding: 14px;
   margin-top: 12px;
   border: 0;
   border-radius: 10px;
-  font-size: 18px;
+  font-size: 17px;
   cursor: pointer;
 }
 
@@ -45,12 +52,13 @@ button {
   color: white;
 }
 
-.led-button {
-  background: #e5e7eb;
+#save {
+  margin-top: 28px;
+  background: #2563eb;
+  color: white;
 }
 
-.led-button:enabled:active,
-#connect:active {
+button:active {
   transform: scale(0.98);
 }
 
@@ -59,6 +67,30 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.controls {
-  margin-top: 24px;
+.config {
+  margin-top: 10px;
+}
+
+label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  text-align: left;
+  font-weight: bold;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  background: white;
+  font-size: 16px;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid #2563eb;
+  border-color: transparent;
 }
