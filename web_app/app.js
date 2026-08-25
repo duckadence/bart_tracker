@@ -1,64 +1,199 @@
-const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const SERVICE_UUID =
+  "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+
+const CHARACTERISTIC_UUID =
+  "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
 let characteristic = null;
+let device = null;
 
 const status = document.getElementById("status");
 const connectButton = document.getElementById("connect");
-const onButton = document.getElementById("on");
-const offButton = document.getElementById("off");
+const saveButton = document.getElementById("save");
 
 connectButton.addEventListener("click", connect);
-onButton.addEventListener("click", () => setLED(true));
-offButton.addEventListener("click", () => setLED(false));
+saveButton.addEventListener("click", saveConfiguration);
+
+// --------------------------------------------------
+// CONNECT TO ESP32
+// --------------------------------------------------
 
 async function connect() {
+
   if (!navigator.bluetooth) {
-    status.textContent = "Web Bluetooth is not supported by this browser.";
+    status.textContent =
+      "Web Bluetooth is not supported by this browser.";
     return;
   }
 
   try {
+
     status.textContent = "Searching for ESP32...";
 
-    const device = await navigator.bluetooth.requestDevice({
+    device = await navigator.bluetooth.requestDevice({
       filters: [{ services: [SERVICE_UUID] }]
     });
 
     status.textContent = "Connecting...";
 
     const server = await device.gatt.connect();
-    const service = await server.getPrimaryService(SERVICE_UUID);
 
-    characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+    const service =
+      await server.getPrimaryService(SERVICE_UUID);
 
-    status.textContent = "Connected to " + (device.name || "ESP32");
+    characteristic =
+      await service.getCharacteristic(CHARACTERISTIC_UUID);
 
-    onButton.disabled = false;
-    offButton.disabled = false;
+    status.textContent =
+      "Connected to " + (device.name || "ESP32");
 
-    device.addEventListener("gattserverdisconnected", () => {
-      characteristic = null;
-      onButton.disabled = true;
-      offButton.disabled = true;
-      status.textContent = "Disconnected";
-    });
+    connectButton.textContent = "Connected";
+    connectButton.disabled = true;
+    saveButton.disabled = false;
+
+    device.addEventListener(
+      "gattserverdisconnected",
+      disconnected
+    );
 
   } catch (error) {
+
     console.error(error);
-    status.textContent = "Connection cancelled or failed.";
+
+    status.textContent =
+      "Connection cancelled or failed.";
   }
 }
 
-async function setLED(on) {
-  if (!characteristic) return;
+// --------------------------------------------------
+// DISCONNECT
+// --------------------------------------------------
+
+function disconnected() {
+
+  characteristic = null;
+
+  connectButton.disabled = false;
+  connectButton.textContent = "Connect ESP32";
+
+  saveButton.disabled = true;
+
+  status.textContent = "Disconnected";
+}
+
+// --------------------------------------------------
+// SEND BLE COMMAND
+// --------------------------------------------------
+
+async function sendCommand(command) {
+
+  if (!characteristic) {
+    status.textContent = "ESP32 is not connected.";
+    return false;
+  }
 
   try {
-    const value = new TextEncoder().encode(on ? "1" : "0");
-    await characteristic.writeValue(value);
-    status.textContent = on ? "LED is ON" : "LED is OFF";
+
+    const data =
+      new TextEncoder().encode(command);
+
+    await characteristic.writeValue(data);
+
+    console.log("Sent:", command);
+
+    return true;
+
   } catch (error) {
+
     console.error(error);
-    status.textContent = "Failed to control LED.";
+
+    status.textContent =
+      "Failed to send configuration.";
+
+    return false;
   }
+}
+
+// --------------------------------------------------
+// SAVE CONFIGURATION
+// --------------------------------------------------
+
+async function saveConfiguration() {
+
+  if (!characteristic) {
+    status.textContent = "Connect to ESP32 first.";
+    return;
+  }
+
+  const ssid =
+    document.getElementById("wifi-ssid").value;
+
+  const password =
+    document.getElementById("wifi-password").value;
+
+  const stations = [
+    document.getElementById("station-1").value,
+    document.getElementById("station-2").value,
+    document.getElementById("station-3").value
+  ];
+
+  if (!ssid) {
+    status.textContent = "Enter a Wi-Fi network.";
+    return;
+  }
+
+  try {
+
+    status.textContent = "Saving configuration...";
+
+    // Wi-Fi
+    if (!await sendCommand("WIFI_SSID=" + ssid))
+      return;
+
+    await delay(100);
+
+    if (!await sendCommand("WIFI_PASS=" + password))
+      return;
+
+    await delay(100);
+
+    // BART stations
+    for (let i = 0; i < 3; i++) {
+
+      if (stations[i]) {
+
+        const command =
+          `STATION_${i + 1}=${stations[i]}`;
+
+        if (!await sendCommand(command))
+          return;
+
+        await delay(100);
+      }
+    }
+
+    // Tell ESP32 to connect
+    await delay(100);
+
+    if (!await sendCommand("WIFI_CONNECT"))
+      return;
+
+    status.textContent =
+      "Configuration saved. Connecting to Wi-Fi...";
+
+  } catch (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "Failed to save configuration.";
+  }
+}
+
+// --------------------------------------------------
+// HELPER
+// --------------------------------------------------
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
