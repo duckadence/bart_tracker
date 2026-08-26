@@ -3,85 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>BART Transit Tracker</title>
-
+  <title>Transit Tracker Configurator</title>
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+  <main class="card">
+    <h1>Transit Config</h1>
+    <p id="status" class="status">Disconnected</p>
 
-<main class="card">
+    <button id="connect">Connect ESP32</button>
 
-  <h1>BART Transit Tracker</h1>
+    <div id="controls" class="controls hidden">
+      <!-- Wi-Fi Settings -->
+      <section class="section">
+        <h3>Wi-Fi Settings</h3>
+        <input type="text" id="wifiSSID" placeholder="Wi-Fi SSID">
+        <input type="password" id="wifiPass" placeholder="Wi-Fi Password">
+        <div class="button-group">
+          <button id="saveWifi" class="action-btn">Save Wi-Fi</button>
+          <button id="connectWifi" class="action-btn secondary">Connect Wi-Fi</button>
+        </div>
+      </section>
 
-  <p id="status" class="status">Disconnected</p>
+      <!-- Provider & API Settings -->
+      <section class="section">
+        <h3>Transit Provider</h3>
+        <select id="provider">
+          <option value="bart">BART</option>
+          <option value="muni">SF Muni (511.org)</option>
+          <option value="vta">VTA (511.org)</option>
+          <option value="caltrain">Caltrain (511.org)</option>
+          <option value="511">Generic 511.org</option>
+          <option value="custom">Custom Endpoint</option>
+        </select>
+        <input type="text" id="apiKey" placeholder="API Key">
+        <input type="text" id="apiUrl" class="hidden" placeholder="Custom URL (use {station} & {key})">
+        <button id="saveProvider" class="action-btn">Save Provider Config</button>
+      </section>
 
-  <button id="connect">Connect ESP32</button>
+      <!-- Station Management -->
+      <section class="section">
+        <h3>Stations</h3>
+        <div class="inline-input">
+          <input type="number" id="stationNum" min="1" max="10" placeholder="Slot (1-10)">
+          <input type="text" id="stationCode" placeholder="Stop / Station Code">
+        </div>
+        <button id="saveStation" class="action-btn">Add / Update Station</button>
+        <button id="clearStations" class="action-btn danger">Clear All Stations</button>
+      </section>
+    </div>
+  </main>
 
-
-  <!-- =========================
-       WI-FI
-       ========================= -->
-
-  <section class="config-section">
-
-    <h2>Wi-Fi</h2>
-
-    <label for="wifi-ssid">Network</label>
-
-    <input
-      type="text"
-      id="wifi-ssid"
-      placeholder="Wi-Fi network name"
-      autocomplete="off"
-    >
-
-    <label for="wifi-password">Password</label>
-
-    <input
-      type="password"
-      id="wifi-password"
-      placeholder="Wi-Fi password"
-      autocomplete="off"
-    >
-
-  </section>
-
-
-  <!-- =========================
-       BART STATIONS
-       ========================= -->
-
-  <section class="config-section">
-
-    <h2>BART Stations</h2>
-
-    <p>
-      Select the stations you want to monitor.
-      All BART lines serving each station will be displayed.
-    </p>
-
-    <div id="stations"></div>
-
-    <button id="add-station" type="button">
-      + Add Station
-    </button>
-
-  </section>
-
-
-  <!-- =========================
-       SAVE
-       ========================= -->
-
-  <button id="save" disabled>
-    Save Configuration
-  </button>
-
-</main>
-
-<script src="app.js"></script>
-
+  <script src="app.js"></script>
 </body>
 </html>
