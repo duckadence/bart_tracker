@@ -14,9 +14,12 @@ const saveButton = document.getElementById("save");
 connectButton.addEventListener("click", connect);
 saveButton.addEventListener("click", saveConfiguration);
 
-// --------------------------------------------------
+saveButton.disabled = true;
+
+
+// ==================================================
 // CONNECT TO ESP32
-// --------------------------------------------------
+// ==================================================
 
 async function connect() {
 
@@ -65,9 +68,10 @@ async function connect() {
   }
 }
 
-// --------------------------------------------------
+
+// ==================================================
 // DISCONNECT
-// --------------------------------------------------
+// ==================================================
 
 function disconnected() {
 
@@ -81,9 +85,10 @@ function disconnected() {
   status.textContent = "Disconnected";
 }
 
-// --------------------------------------------------
+
+// ==================================================
 // SEND BLE COMMAND
-// --------------------------------------------------
+// ==================================================
 
 async function sendCommand(command) {
 
@@ -114,22 +119,27 @@ async function sendCommand(command) {
   }
 }
 
-// --------------------------------------------------
+
+// ==================================================
 // SAVE CONFIGURATION
-// --------------------------------------------------
+// ==================================================
 
 async function saveConfiguration() {
 
   if (!characteristic) {
-    status.textContent = "Connect to ESP32 first.";
+    status.textContent =
+      "Connect to ESP32 first.";
     return;
   }
 
   const ssid =
-    document.getElementById("wifi-ssid").value;
+    document.getElementById("wifi-ssid").value.trim();
 
   const password =
     document.getElementById("wifi-password").value;
+
+  const line =
+    document.getElementById("line-1").value;
 
   const stations = [
     document.getElementById("station-1").value,
@@ -138,44 +148,38 @@ async function saveConfiguration() {
   ];
 
   if (!ssid) {
-    status.textContent = "Enter a Wi-Fi network.";
+    status.textContent =
+      "Enter a Wi-Fi network.";
+    return;
+  }
+
+  if (!line) {
+    status.textContent =
+      "Select a BART line.";
     return;
   }
 
   try {
 
-    status.textContent = "Saving configuration...";
+    status.textContent =
+      "Saving configuration...";
 
-    // Wi-Fi
-    if (!await sendCommand("WIFI_SSID=" + ssid))
-      return;
+    // Create configuration object
+    const config = {
+      ssid: ssid,
+      password: password,
+      line: line,
+      stations: stations
+    };
 
-    await delay(100);
+    // Convert to JSON
+    const command =
+      "CONFIG=" + JSON.stringify(config);
 
-    if (!await sendCommand("WIFI_PASS=" + password))
-      return;
+    console.log("Configuration:", config);
 
-    await delay(100);
-
-    // BART stations
-    for (let i = 0; i < 3; i++) {
-
-      if (stations[i]) {
-
-        const command =
-          `STATION_${i + 1}=${stations[i]}`;
-
-        if (!await sendCommand(command))
-          return;
-
-        await delay(100);
-      }
-    }
-
-    // Tell ESP32 to connect
-    await delay(100);
-
-    if (!await sendCommand("WIFI_CONNECT"))
+    // Send to ESP32
+    if (!await sendCommand(command))
       return;
 
     status.textContent =
@@ -188,12 +192,4 @@ async function saveConfiguration() {
     status.textContent =
       "Failed to save configuration.";
   }
-}
-
-// --------------------------------------------------
-// HELPER
-// --------------------------------------------------
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
