@@ -8,42 +8,75 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
   font-family: Arial, sans-serif;
   background: #f2f4f7;
 }
 
 .card {
-  width: min(100%, 460px);
-  padding: 32px;
+  width: min(92%, 480px);
+  padding: 24px;
+  text-align: center;
   background: white;
   border-radius: 18px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.10);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.10);
 }
 
 h1 {
-  margin: 0;
-  text-align: center;
+  margin-top: 0;
 }
 
-h2 {
-  margin: 28px 0 16px;
-  font-size: 20px;
+h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  text-align: left;
+  color: #444;
 }
 
 .status {
-  margin: 20px 0;
-  text-align: center;
+  margin: 12px 0 20px;
   font-weight: bold;
+  color: #2563eb;
+}
+
+.section {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.inline-input {
+  display: flex;
+  gap: 8px;
+}
+
+.inline-input input:first-child {
+  width: 40%;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
 }
 
 button {
   width: 100%;
   padding: 14px;
-  margin-top: 12px;
+  margin-top: 6px;
   border: 0;
-  border-radius: 10px;
-  font-size: 17px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: bold;
   cursor: pointer;
 }
 
@@ -52,9 +85,18 @@ button {
   color: white;
 }
 
-#save {
-  margin-top: 28px;
+.action-btn {
   background: #2563eb;
+  color: white;
+}
+
+.action-btn.secondary {
+  background: #4b5563;
+  color: white;
+}
+
+.action-btn.danger {
+  background: #dc2626;
   color: white;
 }
 
@@ -62,35 +104,6 @@ button:active {
   transform: scale(0.98);
 }
 
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.config {
-  margin-top: 10px;
-}
-
-label {
-  display: block;
-  margin-top: 14px;
-  margin-bottom: 6px;
-  text-align: left;
-  font-weight: bold;
-}
-
-input,
-select {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 9px;
-  background: white;
-  font-size: 16px;
-}
-
-input:focus,
-select:focus {
-  outline: 2px solid #2563eb;
-  border-color: transparent;
+.hidden {
+  display: none !important;
 }
