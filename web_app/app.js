@@ -123,6 +123,21 @@ let stationOptions = {
 // ... existing code ...
 
 document.addEventListener('DOMContentLoaded', () => {
+  connectButton.addEventListener("click", connect);
+  document.getElementById("saveWifi").addEventListener("click", () => {
+    sendBLECommand(`WIFI_SSID=${wifiSSID.value}`);
+    setTimeout(() => sendBLECommand(`WIFI_PASS=${wifiPass.value}`), 200);
+  });
+  document.getElementById("connectWifi").addEventListener("click", () => sendBLECommand("WIFI_CONNECT"));
+
+  document.getElementById("saveProvider").addEventListener("click", () => {
+    sendBLECommand(`PROVIDER=${providerSelect.value}`);
+    if (apiKey.value) setTimeout(() => sendBLECommand(`API_KEY=${apiKey.value}`), 200);
+    if (providerSelect.value === "custom" && apiUrl.value) {
+      setTimeout(() => sendBLECommand(`API_URL=${apiUrl.value}`), 400);
+    }
+  });
+
   // Load external stations
   try {
     fetch('data/stations.json')
@@ -166,20 +181,18 @@ providerSelect.addEventListener("change", () => {
   });
 });
 
-connectButton.addEventListener("click", connect);
-document.getElementById("saveWifi").addEventListener("click", () => {
-  sendBLECommand(`WIFI_SSID=${wifiSSID.value}`);
-  setTimeout(() => sendBLECommand(`WIFI_PASS=${wifiPass.value}`), 200);
-});
-document.getElementById("connectWifi").addEventListener("click", () => sendBLECommand("WIFI_CONNECT"));
+// ... existing code ...
 
-document.getElementById("saveProvider").addEventListener("click", () => {
-  sendBLECommand(`PROVIDER=${providerSelect.value}`);
-  if (apiKey.value) setTimeout(() => sendBLECommand(`API_KEY=${apiKey.value}`), 200);
-  if (providerSelect.value === "custom" && apiUrl.value) {
-    setTimeout(() => sendBLECommand(`API_URL=${apiUrl.value}`), 400);
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  connectButton.addEventListener("click", connect);
+  // ... other event listeners ...
+  
+  // Load external stations
+  // ...
 });
+
+// Remove these from the top-level
+// connectButton.addEventListener("click", connect);
 // State management
 let characteristic = null;
 let stationOptions = {
