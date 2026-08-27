@@ -1,3 +1,4 @@
+console.log("App script started");
 const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
 const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
@@ -15,6 +16,19 @@ const apiKey = document.getElementById("apiKey");
 const apiUrl = document.getElementById("apiUrl");
 const stationSlot = document.getElementById("stationSlot");
 const stationCode = document.getElementById("stationCode");
+
+console.log("Elements initialized:", {
+    status: !!status,
+    connectButton: !!connectButton,
+    controls: !!controls,
+    wifiSSID: !!wifiSSID,
+    wifiPass: !!wifiPass,
+    providerSelect: !!providerSelect,
+    apiKey: !!apiKey,
+    apiUrl: !!apiUrl,
+    stationSlot: !!stationSlot,
+    stationCode: !!stationCode
+});
 
 // Station options map (populated by fetch or fallback)
 let stationOptions = {
