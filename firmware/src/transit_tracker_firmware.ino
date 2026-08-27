@@ -17,6 +17,7 @@ const unsigned long WIFI_RETRY_INTERVAL = 30000;
 Preferences prefs;
 NimBLECharacteristic *characteristic = nullptr;
 bool stationSet[MAX_STATIONS] = {false};
+bool apiUrlSet = false;
 
 unsigned long lastStationChange = 0;
 unsigned long lastApiFetch = 0;
@@ -48,7 +49,10 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
     else if (command.startsWith("WIFI_PASS=")) prefs.putString("password", command.substring(10));
     else if (command.startsWith("PROVIDER=")) prefs.putString("provider", command.substring(9));
     else if (command.startsWith("API_KEY=")) prefs.putString("apiKey", command.substring(8));
-    else if (command.startsWith("API_URL=")) prefs.putString("apiUrl", command.substring(8));
+    else if (command.startsWith("API_URL=")) {
+            prefs.putString("apiUrl", command.substring(8));
+            apiUrlSet = true;
+          }
     else if (command.startsWith("SWITCH_INT=")) {
         STATION_SWITCH_INTERVAL = command.substring(11).toInt();
         prefs.putULong("switchInt", STATION_SWITCH_INTERVAL);
@@ -154,12 +158,12 @@ void getTransitData(const String &station) {
     return;
   }
 
-  String apiUrl = prefs.getString("apiUrl", "");
-  String apiKey = prefs.getString("apiKey", "");
-  if (apiUrl.isEmpty()) {
+  if (!apiUrlSet) {
     Serial.println(F("No API URL set"));
     return;
   }
+  String apiUrl = prefs.getString("apiUrl", "");
+  String apiKey = prefs.getString("apiKey", "");
 
   // Build final URL: we assume the user has set a valid URL via BLE
   // that includes any necessary station and key parameters.
@@ -231,7 +235,10 @@ void setup() {
   NimBLEDevice::startAdvertising();
   Serial.println("BLE: Advertising started - device should be discoverable");
 
-  if (!prefs.getString("ssid", "").isEmpty()) connectWiFi();
+  String storedSsid = prefs.getString("ssid", "");
+    if (!storedSsid.isEmpty()) connectWiFi();
+    String storedApiUrl = prefs.getString("apiUrl", "");
+    if (!storedApiUrl.isEmpty()) apiUrlSet = true;
 }
 
 void loop() {
