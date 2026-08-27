@@ -41,7 +41,7 @@
         <button id="saveProvider" class="action-btn">Save Provider Config</button>
       </section>
 
-      <!-- Timing & Station Management -->
+      <!-- Timing Settings -->
       <section class="section">
         <h3>Timing Settings</h3>
         <input type="number" id="switchInterval" placeholder="Station Switch Interval (ms)">
@@ -49,6 +49,7 @@
         <button id="saveTiming" class="action-btn">Save Timing Settings</button>
       </section>
 
+      <!-- Station Management -->
       <section class="section">
         <h3>Stations</h3>
         <div class="button-group">
@@ -57,6 +58,7 @@
         <div id="stationList" class="station-list">
           <p>No stations configured yet.</p>
         </div>
+        
         <div class="inline-input">
           <select id="stationSlot">
             <option value="">Select Slot (1-10)</option>
@@ -71,10 +73,21 @@
             <option value="9">Slot 9</option>
             <option value="10">Slot 10</option>
           </select>
-          <select id="stationCode">
-            <option value="">Select a Station</option>
-          </select>
         </div>
+        
+        <!-- Station Search/Selection -->
+        <div class="station-search">
+          <div class="search-input-wrapper">
+            <input type="text" id="stationSearch" placeholder="Search for a stop (type 3+ chars) or enter code manually..." autocomplete="off">
+            <button id="useLocation" class="action-btn secondary" title="Find stops near me">📍 Use My Location</button>
+          </div>
+          <div id="searchResults" class="search-results hidden"></div>
+          <div class="manual-entry">
+            <small>Or enter stop code directly:</small>
+            <input type="text" id="stationCode" placeholder="Stop Code (e.g., 16001, EMBR)">
+          </div>
+        </div>
+        
         <button id="saveStation" class="action-btn">Add / Update Station</button>
         <button id="clearStations" class="action-btn danger">Clear All Stations</button>
       </section>

@@ -19,6 +19,11 @@ const apiInterval = document.getElementById("apiInterval");
 const stationSlot = document.getElementById("stationSlot");
 const stationCode = document.getElementById("stationCode");
 
+// New elements for search
+const stationSearch = document.getElementById("stationSearch");
+const searchResults = document.getElementById("searchResults");
+const useLocation = document.getElementById("useLocation");
+
 console.log("Elements initialized:", {
     status: !!status,
     connectButton: !!connectButton,
@@ -29,7 +34,10 @@ console.log("Elements initialized:", {
     apiKey: !!apiKey,
     apiUrl: !!apiUrl,
     stationSlot: !!stationSlot,
-    stationCode: !!stationCode
+    stationCode: !!stationCode,
+    stationSearch: !!stationSearch,
+    searchResults: !!searchResults,
+    useLocation: !!useLocation
 });
 
 // Station options map (populated by fetch or fallback)
@@ -146,6 +154,130 @@ let stationOptions = {
   ]
 };
 
+// Search debounce timer
+let searchTimer = null;
+
+// API base URLs
+const API_BASE_URLS = {
+  bart: "https://api.bart.gov/api/stn.aspx?cmd=stns&key=MW9S-E7SL-26DU-VV8V&json=y",
+  muni: "https://api.511.org/transit/stops?api_key=MW9S-E7SL-26DU-VV8V&agency=SF&format=json",
+  vta: "https://api.511.org/transit/stops?api_key=MW9S-E7SL-26DU-VV8V&agency=SC&format=json",
+  caltrain: "https://api.511.org/transit/stops?api_key=MW9S-E7SL-26DU-VV8V&agency=CT&format=json",
+  actransit: "https://api.511.org/transit/stops?api_key=MW9S-E7SL-26DU-VV8V&agency=AC&format=json"
+};
+
+// Search for stops using API
+async function searchStops(query) {
+  if (!query || query.length < 3) {
+    searchResults.classList.add("hidden");
+    return;
+  }
+
+  const provider = providerSelect.value;
+  const apiUrl = API_BASE_URLS[provider];
+
+  if (!apiUrl) {
+    console.warn("No API configured for provider:", provider);
+    return;
+  }
+
+  try {
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    let stops = [];
+    
+    if (provider === "bart") {
+      // Parse BART API response
+      if (data?.root?.stations?.station) {
+        const stations = Array.isArray(data.root.stations.station) 
+          ? data.root.stations.station 
+          : [data.root.stations.station];
+        
+        stops = stations
+          .filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
+          .map(s => ({ code: s.abbr, name: s.name }));
+      }
+    } else {
+      // Parse 511.org API response (Muni, VTA, Caltrain, AC Transit)
+      const stopsData = data?.ServiceDelivery?.StopDelivery?.Stop;
+      if (stopsData) {
+        const stopsArray = Array.isArray(stopsData) ? stopsData : [stopsData];
+        stops = stopsArray
+          .filter(s => s.StopName && s.StopName.toLowerCase().includes(query.toLowerCase()))
+          .map(s => ({ code: s.StopCode || s.id, name: s.StopName }));
+      }
+    }
+
+    // Show results
+    if (stops.length > 0) {
+      showSearchResults(stops);
+    } else {
+      searchResults.classList.add("hidden");
+      status.textContent = "No stops found for that search.";
+    }
+  } catch (error) {
+    console.error("Search error:", error);
+    searchResults.classList.add("hidden");
+    status.textContent = "Error searching for stops. Using fallback list.";
+    
+    // Fallback to static list if API fails
+    const fallbackStops = stationOptions[provider] || [];
+    const filtered = fallbackStops.filter(s => 
+      s.name.toLowerCase().includes(query.toLowerCase())
+    );
+    if (filtered.length > 0) showSearchResults(filtered);
+  }
+}
+
+// Show search results in dropdown
+function showSearchResults(stops) {
+  searchResults.innerHTML = "";
+  searchResults.classList.remove("hidden");
+  
+  stops.forEach(stop => {
+    const div = document.createElement("div");
+    div.className = "search-result";
+    div.textContent = `${stop.name} (${stop.code})`;
+    div.dataset.code = stop.code;
+    div.dataset.name = stop.name;
+    div.addEventListener("click", () => {
+      stationCode.value = stop.code;
+      status.textContent = `Selected: ${stop.name}`;
+      searchResults.classList.add("hidden");
+    });
+    searchResults.appendChild(div);
+  });
+}
+
+// Use geolocation to find nearby stops
+async function findNearbyStops() {
+  if (!navigator.geolocation) {
+    status.textContent = "Geolocation not supported in this browser.";
+    return;
+  }
+
+  status.textContent = "Getting your location...";
+  
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+    });
+
+    const { latitude, longitude } = position.coords;
+    status.textContent = `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    
+    // For now, just show a message. In a full implementation, we'd query the API
+    // with lat/long to find nearby stops. This would require a backend proxy
+    // due to CORS restrictions with 511.org API.
+    status.textContent = "Geolocation successful! For nearby stops, use the search above.";
+    
+  } catch (error) {
+    console.error("Geolocation error:", error);
+    status.textContent = "Could not get location. Please enable location services.";
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   connectButton.addEventListener("click", connect);
 
@@ -186,6 +318,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById("fetchStations").addEventListener("click", () => {
     sendBLECommand("GET_STATIONS");
   });
+
+  // Search functionality
+  stationSearch.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => searchStops(stationSearch.value), 500);
+  });
+
+  useLocation.addEventListener("click", findNearbyStops);
 
   // Fetch stations.json
   fetch('data/stations.json')
