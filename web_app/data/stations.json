@@ -54,7 +54,10 @@
     { "code": "16010", "name": "Bus - Mission & 16th" },
     { "code": "16011", "name": "Bus - Mission & 24th" },
     { "code": "16012", "name": "Rail - Balboa Park" },
-    { "code": "16013", "name": "Rail - Daly City" }
+    { "code": "16013", "name": "Rail - Daly City" },
+    { "code": "13913", "name": "Bus - Geary & Presidio" },
+    { "code": "15372", "name": "Bus - Van Ness & Market" },
+    { "code": "13421", "name": "Bus - 3rd St & Mariposa" }
   ],
   "caltrain": [
     { "code": "70012", "name": "San Francisco" },
