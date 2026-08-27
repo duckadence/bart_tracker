@@ -16,17 +16,42 @@ const stationNum = document.getElementById("stationNum");
 const stationCode = document.getElementById("stationCode");
 
 // Station options map
-const stationOptions = {
+let stationOptions = {
   bart: [
     { code: "EMBR", name: "Embarcadero" },
     { code: "MONT", name: "Montgomery St." },
-    { code: "POWL", name: "Powell St." }
+    { code: "POWL", name: "Powell St." },
+    { code: "CIVC", name: "Civic Center" }
   ],
   muni: [
     { code: "16345", name: "Market St & 5th St" },
     { code: "13204", name: "California St & Davis St" }
+  ],
+  caltrain: [
+    { code: "70012", name: "San Francisco" },
+    { code: "70022", name: "22nd Street" },
+    { code: "70032", name: "Bayshore" }
+  ],
+  vta: [
+    { code: "70211", name: "Mountain View" },
+    { code: "70221", name: "San Antonio" }
+  ],
+  actransit: [
+    { code: "50001", name: "Downtown Berkeley" },
+    { code: "50002", name: "MacArthur" }
   ]
 };
+
+// Load external stations
+fetch('data/stations.json')
+  .then(response => response.json())
+  .then(data => {
+    stationOptions = data;
+    console.log("Stations loaded successfully");
+  })
+  .catch(error => {
+    console.warn("Could not load stations.json, using fallback:", error);
+  });
 
 // Update station dropdown when provider changes
 providerSelect.addEventListener("change", () => {
