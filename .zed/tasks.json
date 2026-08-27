@@ -1,0 +1,17 @@
+[
+  {
+    "label": "PlatformIO: Verify (Compile)",
+    "command": "pio run -d firmware -e esp32dev",
+    "use_output_panel": true
+  },
+  {
+    "label": "PlatformIO: Upload",
+    "command": "pio run -d firmware -e esp32dev -t upload",
+    "use_output_panel": true
+  },
+  {
+    "label": "PlatformIO: Monitor",
+    "command": "pio device monitor -d firmware -p COM5 -b 115200",
+    "use_output_panel": true
+  }
+]
