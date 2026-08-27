@@ -73,7 +73,6 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
         // Force API fetch for this station if WiFi is connected
         if (WiFi.status() == WL_CONNECTED) {
           getTransitData(stationCode);
-          lastApiFetch = millis();
         }
       }
     }
@@ -140,14 +139,42 @@ int findNextStation() {
 }
 
 void getTransitData(const String &station) {
-  // Logic to only fetch every API_FETCH_INTERVAL
-  if (WiFi.status() != WL_CONNECTED) return;
-  
-  // Implementation of actual HTTP request would go here, 
-  // currently simplified to focus on structure
-  Serial.print(F("Fetching data for: "));
-  Serial.println(station);
-  cachedTransitData = "Data for " + station; // Placeholder
+  // Rate limiting: only fetch every API_FETCH_INTERVAL
+  unsigned long now = millis();
+  if (now - lastApiFetch < API_FETCH_INTERVAL) {
+    return;
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+
+  String apiUrl = prefs.getString("apiUrl", "");
+  String apiKey = prefs.getString("apiKey", "");
+  if (apiUrl.isEmpty()) {
+    Serial.println(F("No API URL set"));
+    return;
+  }
+
+  // Build final URL: we assume the user has set a valid URL via BLE
+  // that includes any necessary station and key parameters.
+  // For simplicity, we do not modify the URL here.
+  HTTPClient http;
+  http.begin(apiUrl); // TODO: consider adding station and key if needed
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    String payload = http.getString();
+    Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+    if (httpCode == HTTP_CODE_OK) {
+      cachedTransitData = payload;
+      Serial.println(cachedTransitData);
+      lastApiFetch = now;
+    }
+  } else {
+    Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  }
+  http.end();
 }
 
 void selectNextStation() {
@@ -159,7 +186,6 @@ void selectNextStation() {
   // Always fetch fresh data when switching to a new station
   if (WiFi.status() == WL_CONNECTED) {
     getTransitData(currentStationCode);
-    lastApiFetch = millis();
   }
 }
 
