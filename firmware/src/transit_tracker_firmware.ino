@@ -367,6 +367,8 @@ void parseBARTJson(JsonDocument &doc) {
     for (JsonObject train : trains) {
       // Get the color identifier
       const char *rawColor = train["color"] | train["abbreviation"] | train["destination"] | "Train";
+      Serial.print("DEBUG: rawColor = ");
+      Serial.println(rawColor);
       String color = getBartColorName(rawColor);
       
       JsonArray estimates = train["estimate"].as<JsonArray>();

@@ -25,7 +25,7 @@
     { "code": "MCAR", "name": "MacArthur" },
     { "code": "MLBR", "name": "Millbrae" },
     { "code": "NBRK", "name": "North Berkeley" },
-    { "code": "NBRK", "name": "North Concord/Martinez" },
+    { "code": "NCON", "name": "North Concord/Martinez" },
     { "code": "OAKL", "name": "Oakland International Airport" },
     { "code": "ORIN", "name": "Orinda" },
     { "code": "PHIL", "name": "Pittsburg/Bay Point" },
