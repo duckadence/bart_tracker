@@ -136,13 +136,36 @@ void setup() {
   STATION_SWITCH_INTERVAL = prefs.getULong("switchInt", 60000);
   API_FETCH_INTERVAL = prefs.getULong("apiInt", 300000);
 
+  // BLE Setup
   NimBLEDevice::init("TransitTracker");
+  Serial.println("BLE: Device initialized");
+  
   NimBLEServer *server = NimBLEDevice::createServer();
+  Serial.println("BLE: Server created");
+  
   NimBLEService *service = server->createService(SERVICE_UUID);
-  characteristic = service->createCharacteristic(CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
+  Serial.println("BLE: Service created");
+  
+  characteristic = service->createCharacteristic(
+    CHARACTERISTIC_UUID,
+    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY
+  );
+  Serial.println("BLE: Characteristic created");
+  
   characteristic->setCallbacks(new ConfigCallbacks());
+  Serial.println("BLE: Callbacks set");
+  
   service->start();
+  Serial.println("BLE: Service started");
+  
+  NimBLEAdvertising *advertising = NimBLEDevice::getAdvertising();
+  advertising->addServiceUUID(SERVICE_UUID);
+  advertising->setScanResponse(true);
+  advertising->setMinInterval(32); // 20ms
+  advertising->setMaxInterval(160); // 100ms
+  Serial.println("BLE: Starting advertising...");
   NimBLEDevice::startAdvertising();
+  Serial.println("BLE: Advertising started - device should be discoverable");
 
   if (!prefs.getString("ssid", "").isEmpty()) connectWiFi();
 }
