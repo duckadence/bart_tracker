@@ -48,10 +48,7 @@ void selectNextStation();
 
 class ConfigCallbacks : public NimBLECharacteristicCallbacks {
 
-  void onWrite(
-    NimBLECharacteristic *pCharacteristic,
-    NimBLEConnInfo &connInfo
-  ) override {
+  void onWrite(NimBLECharacteristic *pCharacteristic) override {
 
     std::string value = pCharacteristic->getValue();
 
@@ -162,12 +159,6 @@ void connectWiFi() {
   
   if (ssid.isEmpty() || password.isEmpty()) {
     Serial.println(F("Wi-Fi: missing credentials"));
-    return;
-  }
-
-  if (ssid.isEmpty()) {
-    if (ssid.equals(F("(none)"))) {
-    Serial.println(F("Wi-Fi: no network configured."));
     return;
   }
 
@@ -321,8 +312,8 @@ void getTransitData(const String &station) {
   }
 
   // Use smaller JSON document - most transit APIs return relatively small responses
-  StaticJsonDocument<1024> doc;
-  DeserializationError error = deserializeJson(doc, response);
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, response.c_str());
 
   if (error) {
     Serial.print(F("JSON Parse Failed"));
