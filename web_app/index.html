@@ -41,9 +41,19 @@
         <button id="saveProvider" class="action-btn">Save Provider Config</button>
       </section>
 
-      <!-- Station Management -->
+      <!-- Timing & Station Management -->
+      <section class="section">
+        <h3>Timing Settings</h3>
+        <input type="number" id="switchInterval" placeholder="Station Switch Interval (ms)">
+        <input type="number" id="apiInterval" placeholder="API Fetch Interval (ms)">
+        <button id="saveTiming" class="action-btn">Save Timing Settings</button>
+      </section>
+
       <section class="section">
         <h3>Stations</h3>
+        <div class="button-group">
+            <button id="fetchStations" class="action-btn">Fetch Configured Stations</button>
+        </div>
         <div id="stationList" class="station-list">
           <p>No stations configured yet.</p>
         </div>

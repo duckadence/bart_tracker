@@ -14,6 +14,8 @@ const wifiPass = document.getElementById("wifiPass");
 const providerSelect = document.getElementById("provider");
 const apiKey = document.getElementById("apiKey");
 const apiUrl = document.getElementById("apiUrl");
+const switchInterval = document.getElementById("switchInterval");
+const apiInterval = document.getElementById("apiInterval");
 const stationSlot = document.getElementById("stationSlot");
 const stationCode = document.getElementById("stationCode");
 
@@ -176,7 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.getElementById("clearStations").addEventListener("click", () => sendBLECommand("CLEAR_STATIONS"));
+  document.getElementById("saveTiming").addEventListener("click", () => {
+    if (switchInterval.value) sendBLECommand(`SWITCH_INT=${switchInterval.value}`);
+    if (apiInterval.value) setTimeout(() => sendBLECommand(`API_INT=${apiInterval.value}`), 200);
+  });
+
+  document.getElementById("fetchStations").addEventListener("click", () => {
+    sendBLECommand("GET_STATIONS");
+  });
 
   // Fetch stations.json
   fetch('data/stations.json')
