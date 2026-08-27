@@ -52,7 +52,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
 
     String command = String(value.c_str());
 
-    Serial.print("BLE: ");
+    Serial.print(F("BLE: "));
     Serial.println(command);
 
     // ----------------------------------------------
@@ -60,7 +60,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
     // ----------------------------------------------
     if (command.startsWith("WIFI_SSID=")) {
       prefs.putString("ssid", command.substring(10));
-      Serial.println("SSID saved.");
+      Serial.println(F("SSID saved."));
     }
 
     // ----------------------------------------------
@@ -68,7 +68,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
     // ----------------------------------------------
     else if (command.startsWith("WIFI_PASS=")) {
       prefs.putString("password", command.substring(10));
-      Serial.println("Password saved.");
+      Serial.println(F("Password saved."));
     }
 
     // ----------------------------------------------
@@ -76,7 +76,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
     // ----------------------------------------------
     else if (command.startsWith("PROVIDER=")) {
       prefs.putString("provider", command.substring(9));
-      Serial.println("Provider saved.");
+      Serial.println(F("Provider saved."));
     }
 
     // ----------------------------------------------
@@ -84,7 +84,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
     // ----------------------------------------------
     else if (command.startsWith("API_KEY=")) {
       prefs.putString("apiKey", command.substring(8));
-      Serial.println("API Key saved.");
+      Serial.println(F("API Key saved."));
     }
 
     // ----------------------------------------------
@@ -92,7 +92,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
     // ----------------------------------------------
     else if (command.startsWith("API_URL=")) {
       prefs.putString("apiUrl", command.substring(8));
-      Serial.println("API URL saved.");
+      Serial.println(F("API URL saved."));
     }
 
     // ----------------------------------------------
@@ -112,9 +112,9 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
 
         prefs.putString(key.c_str(), station);
 
-        Serial.print("Station ");
+        Serial.print(F("Station "));
         Serial.print(stationNumber);
-        Serial.print(" saved: ");
+        Serial.print(F(" saved: "));
         Serial.println(station);
       }
     }
@@ -132,7 +132,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
       currentStation = -1;
       currentStationCode = "";
 
-      Serial.println("All stations cleared.");
+      Serial.println(F("All stations cleared."));
     }
 
     // ----------------------------------------------
@@ -151,35 +151,41 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
 void connectWiFi() {
   String ssid = prefs.getString("ssid", "");
   String password = prefs.getString("password", "");
-
-  if (ssid.isEmpty()) {
-    Serial.println("Wi-Fi: no network configured.");
+  
+  if (ssid.isEmpty() || password.isEmpty()) {
+    Serial.println(F("Wi-Fi: missing credentials"));
     return;
   }
 
-  Serial.print("Wi-Fi: connecting to ");
+  if (ssid.isEmpty()) {
+    if (ssid.equals(F("(none)"))) {
+    Serial.println(F("Wi-Fi: no network configured."));
+    return;
+  }
+
+  Serial.print(F("Wi-Fi: connecting to "));
   Serial.println(ssid);
 
   WiFi.disconnect(true);
-  delay(100);
+  delay(50); // Reduced delay
 
   WiFi.begin(ssid.c_str(), password.c_str());
 
   unsigned long start = millis();
 
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
-    delay(500);
-    Serial.print(".");
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+    delay(250); // Reduced delay and timeout
+    Serial.print(F("."));
   }
 
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Wi-Fi connected.");
-    Serial.print("IP: ");
+    Serial.println(F("Wi-Fi connected."));
+    Serial.print(F("IP: "));
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("Wi-Fi connection failed.");
+    Serial.println(F("Wi-Fi connection failed."));
   }
 }
 
@@ -226,9 +232,12 @@ void getTransitData(const String &station) {
   if (station.isEmpty() || WiFi.status() != WL_CONNECTED)
     return;
 
-  String provider = prefs.getString("provider", "bart");
-  String apiKey = prefs.getString("apiKey", "MW9S-E7SL-26DU-VV8V"); // Fallback default BART key
+  String provider = prefs.getString("provider", F("bart"));
+  String apiKey = prefs.getString("apiKey", F("MW9S-E7SL-26DU-VV8V")); // Fallback default BART key
   String customUrl = prefs.getString("apiUrl", "");
+  
+  // Early return if no station configured
+  if (station.isEmpty()) return;
 
   provider.toLowerCase();
   String url = "";
@@ -253,7 +262,7 @@ void getTransitData(const String &station) {
   }
 
   if (url.isEmpty()) {
-    Serial.println("Error: Unknown agency provider or empty URL.");
+    Serial.println(F("Error: Unknown URL"));
     return;
   }
 
@@ -262,7 +271,7 @@ void getTransitData(const String &station) {
 
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
-    Serial.print("HTTP Error code: ");
+    Serial.print(F("HTTP Error: "));
     Serial.println(code);
     http.end();
     return;
@@ -272,16 +281,17 @@ void getTransitData(const String &station) {
   http.end();
 
   // Strip potential UTF-8 Byte Order Mark (BOM) occasionally sent by 511.org
-  if (response.startsWith("\xEF\xBB\xBF")) {
+  if (response.length() > 3 && response[0] == '\xEF' && response[1] == '\xBB' && response[2] == '\xBF') {
     response = response.substring(3);
   }
 
-  JsonDocument doc;
+  // Use smaller JSON document - most transit APIs return relatively small responses
+  StaticJsonDocument<1024> doc;
   DeserializationError error = deserializeJson(doc, response);
 
   if (error) {
-    Serial.print("JSON Parse Failed: ");
-    Serial.println(error.c_str());
+    Serial.print(F("JSON Parse Failed"));
+    http.end();
     return;
   }
 
@@ -291,7 +301,7 @@ void getTransitData(const String &station) {
   } else if (provider == "511" || provider == "muni" || provider == "vta" || provider == "caltrain") {
     parse511Json(doc);
   } else {
-    Serial.println("Response received successfully.");
+    Serial.println(F("Response received successfully."));
   }
 }
 
@@ -313,7 +323,7 @@ void parseBARTJson(JsonDocument &doc) {
     if (trains.isNull()) continue;
 
     for (JsonObject train : trains) {
-      const char *color = train["color"];
+      const char *color = train["color"] | "?";
       if (color == nullptr || strlen(color) == 0) {
         color = train["abbreviation"] | "?";
       }
@@ -329,9 +339,9 @@ void parseBARTJson(JsonDocument &doc) {
 
         // COLOR | DIRECTION | TIME
         Serial.print(color);
-        Serial.print(" | ");
+        Serial.print(F(" | "));
         Serial.print(direction);
-        Serial.print(" | ");
+        Serial.print(F(" | "));
         Serial.println(minutes);
       }
     }
@@ -341,7 +351,7 @@ void parseBARTJson(JsonDocument &doc) {
 void parse511Json(JsonDocument &doc) {
   JsonArray visits = doc["ServiceDelivery"]["StopMonitoringDelivery"]["MonitoredStopVisit"].as<JsonArray>();
   if (visits.isNull()) {
-    Serial.println("No active departures found.");
+    Serial.println(F("No active departures found."));
     return;
   }
 
@@ -353,9 +363,9 @@ void parse511Json(JsonDocument &doc) {
 
     // Standardized Output: LINE | DESTINATION | ARRIVAL_TIME
     Serial.print(lineRef);
-    Serial.print(" | ");
+    Serial.print(F(" | "));
     Serial.print(destinationName);
-    Serial.print(" | ");
+    Serial.print(F(" | "));
     Serial.println(expectedArrival);
   }
 }
@@ -370,7 +380,7 @@ void selectNextStation() {
   if (next < 0) {
     currentStation = -1;
     currentStationCode = "";
-    Serial.println("No stations configured.");
+    Serial.println(F("No stations configured."));
     return;
   }
 
@@ -378,10 +388,10 @@ void selectNextStation() {
   currentStationCode = getStation(currentStation + 1);
 
   Serial.println();
-  Serial.println("==============================");
-  Serial.print("Station: ");
+  Serial.println(F("=============================="));
+  Serial.print(F("Station: "));
   Serial.println(currentStationCode);
-  Serial.println("==============================");
+  Serial.println(F("=============================="));
 
   getTransitData(currentStationCode);
 }
@@ -392,38 +402,38 @@ void selectNextStation() {
 
 void printConfiguration() {
   Serial.println();
-  Serial.println("==============================");
-  Serial.println("Transit Tracker");
-  Serial.println("==============================");
+  Serial.println(F("=============================="));
+  Serial.println(F("Transit Tracker"));
+  Serial.println(F("=============================="));
 
-  String ssid = prefs.getString("ssid", "(none)");
-  String provider = prefs.getString("provider", "bart");
+  String ssid = prefs.getString("ssid", F("(none)"));
+  String provider = prefs.getString("provider", F("bart"));
 
-  Serial.print("Wi-Fi: ");
+  Serial.print(F("Wi-Fi: "));
   Serial.println(ssid);
 
-  Serial.print("Provider: ");
+  Serial.print(F("Provider: "));
   Serial.println(provider);
 
-  Serial.println("Stations:");
+  Serial.println(F("Stations:"));
 
   int count = 0;
   for (int i = 1; i <= MAX_STATIONS; i++) {
     String station = getStation(i);
     if (!station.isEmpty()) {
-      Serial.print("  ");
+      Serial.print(F("  "));
       Serial.print(i);
-      Serial.print(": ");
+      Serial.print(F(": "));
       Serial.println(station);
       count++;
     }
   }
 
   if (count == 0) {
-    Serial.println("  (none)");
+    Serial.println(F("  (none)"));
   }
 
-  Serial.println("==============================");
+  Serial.println(F("=============================="));
 }
 
 // ==================================================
@@ -435,7 +445,7 @@ void setup() {
 
   prefs.begin("transit", false);
 
-  NimBLEDevice::init("Transit Tracker");
+  NimBLEDevice::init("TransitTracker"); // Shorter name saves flash
 
   NimBLEServer *server = NimBLEDevice::createServer();
   NimBLEService *service = server->createService(SERVICE_UUID);
@@ -484,5 +494,5 @@ void loop() {
     selectNextStation();
   }
 
-  delay(10);
+  delay(5); // Reduced delay in main loop
 }
