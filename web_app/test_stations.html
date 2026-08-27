@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Station Dropdown Test</title>
+</head>
+<body>
+  <h1>Station Dropdown Test</h1>
+  
+  <div>
+    <label for="provider">Transit Agency:</label>
+    <select id="provider">
+      <option value="bart">BART</option>
+      <option value="muni">SF Muni</option>
+      <option value="caltrain">Caltrain</option>
+      <option value="vta">VTA</option>
+      <option value="actransit">AC Transit</option>
+      <option value="511">Generic 511.org</option>
+    </select>
+  </div>
+  
+  <div>
+    <label for="station">Station:</label>
+    <select id="station">
+      <option value="">Select a Station</option>
+    </select>
+  </div>
+
+  <script>
+    // Load stations data
+    fetch('data/stations.json')
+      .then(response => response.json())
+      .then(data => {
+        console.log('Stations loaded:', data);
+        
+        const providerSelect = document.getElementById('provider');
+        const stationSelect = document.getElementById('station');
+        
+        // Update station dropdown when provider changes
+        providerSelect.addEventListener('change', () => {
+          const provider = providerSelect.value;
+          const stations = data[provider] || [];
+          
+          // Clear and repopulate station dropdown
+          stationSelect.innerHTML = '<option value="">Select a Station</option>';
+          stations.forEach(station => {
+            const option = document.createElement('option');
+            option.value = station.code;
+            option.textContent = station.name;
+            stationSelect.appendChild(option);
+          });
+          
+          console.log(`Updated stations for ${provider}:`, stations);
+        });
+        
+        // Trigger initial load
+        providerSelect.dispatchEvent(new Event('change'));
+      })
+      .catch(error => {
+        console.error('Error loading stations:', error);
+      });
+  </script>
+</body>
+</html>

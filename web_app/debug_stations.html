@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Station Debug Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .debug-info { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    .station-list { margin-left: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Station Selection Debug Test</h1>
+  
+  <div>
+    <label for="provider">Transit Agency:</label>
+    <select id="provider">
+      <option value="bart">BART</option>
+      <option value="muni">SF Muni</option>
+      <option value="caltrain">Caltrain</option>
+      <option value="vta">VTA</option>
+      <option value="actransit">AC Transit</option>
+      <option value="511">Generic 511.org</option>
+    </select>
+  </div>
+  
+  <div>
+    <label for="station">Station:</label>
+    <select id="station" size="10" style="width: 300px;">
+      <option value="">Select a Station</option>
+    </select>
+  </div>
+
+  <div class="debug-info">
+    <h3>Debug Information</h3>
+    <div id="debugOutput"></div>
+  </div>
+
+  <script>
+    const debugOutput = document.getElementById('debugOutput');
+    
+    function logDebug(message) {
+      debugOutput.innerHTML += message + '<br>';
+      console.log(message);
+    }
+    
+    // Load stations data
+    logDebug('Attempting to load stations.json...');
+    
+    fetch('data/stations.json')
+      .then(response => {
+        logDebug('Fetch response received');
+        return response.json();
+      })
+      .then(data => {
+        logDebug('Stations loaded successfully:');
+        logDebug(JSON.stringify(data, null, 2));
+        
+        const providerSelect = document.getElementById('provider');
+        const stationSelect = document.getElementById('station');
+        
+        // Update station dropdown when provider changes
+        providerSelect.addEventListener('change', () => {
+          const provider = providerSelect.value;
+          const stations = data[provider] || [];
+          
+          logDebug(`\nProvider changed to: ${provider}`);
+          logDebug(`Found ${stations.length} stations`);
+          
+          // Clear and repopulate station dropdown
+          stationSelect.innerHTML = '<option value="">Select a Station</option>';
+          stations.forEach(station => {
+            const option = document.createElement('option');
+            option.value = station.code;
+            option.textContent = station.name;
+            stationSelect.appendChild(option);
+          });
+          
+          // Show stations in debug output
+          if (stations.length > 0) {
+            logDebug('Available stations:');
+            stations.forEach(station => {
+              logDebug(`- ${station.code}: ${station.name}`);
+            });
+          } else {
+            logDebug('No stations found for this provider');
+          }
+        });
+        
+        // Trigger initial load
+        providerSelect.dispatchEvent(new Event('change'));
+      })
+      .catch(error => {
+        logDebug('Error loading stations.json:');
+        logDebug(error.message);
+        logDebug('Using fallback stations...');
+        
+        // Fallback stations
+        const fallbackData = {
+          bart: [
+            { code: "EMBR", name: "Embarcadero" },
+            { code: "MONT", name: "Montgomery St." }
+          ],
+          muni: [
+            { code: "16345", name: "Market St & 5th St" }
+          ],
+          caltrain: [
+            { code: "70012", name: "San Francisco" }
+          ],
+          vta: [
+            { code: "70211", name: "Mountain View" }
+          ],
+          actransit: [
+            { code: "50001", name: "Downtown Berkeley" }
+          ],
+          "511": [
+            { code: "70012", name: "San Francisco" },
+            { code: "70211", name: "Mountain View" }
+          ]
+        };
+        
+        const providerSelect = document.getElementById('provider');
+        const stationSelect = document.getElementById('station');
+        
+        providerSelect.addEventListener('change', () => {
+          const provider = providerSelect.value;
+          const stations = fallbackData[provider] || [];
+          
+          logDebug(`\nProvider changed to: ${provider}`);
+          logDebug(`Found ${stations.length} stations (fallback)`);
+          
+          stationSelect.innerHTML = '<option value="">Select a Station</option>';
+          stations.forEach(station => {
+            const option = document.createElement('option');
+            option.value = station.code;
+            option.textContent = station.name;
+            stationSelect.appendChild(option);
+          });
+        });
+        
+        providerSelect.dispatchEvent(new Event('change'));
+      });
+  </script>
+</body>
+</html>
