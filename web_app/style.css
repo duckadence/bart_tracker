@@ -13,7 +13,7 @@ body {
 }
 
 .card {
-  width: min(92%, 480px);
+  width: min(96%, 960px);
   padding: 24px;
   text-align: center;
   background: white;
@@ -170,4 +170,17 @@ button:active {
 .station-list p {
   margin: 0;
   color: #6b7280;
+}
+
+/* Two-column layout */
+.column-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .column-layout {
+    grid-template-columns: 1fr;
+  }
 }

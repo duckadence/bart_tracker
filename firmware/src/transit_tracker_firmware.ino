@@ -62,7 +62,19 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
       int stationNumber = command.substring(8, equalsPos).toInt();
       if (stationNumber >= 1 && stationNumber <= MAX_STATIONS) {
         String key = "station" + String(stationNumber);
-        prefs.putString(key.c_str(), command.substring(equalsPos + 1));
+        String stationCode = command.substring(equalsPos + 1);
+        prefs.putString(key.c_str(), stationCode);
+        
+        Serial.print(F("Station "));
+        Serial.print(stationNumber);
+        Serial.print(F(" saved: "));
+        Serial.println(stationCode);
+        
+        // Force API fetch for this station if WiFi is connected
+        if (WiFi.status() == WL_CONNECTED) {
+          getTransitData(stationCode, stationNumber - 1);
+          lastApiFetch = millis();
+        }
       }
     }
     else if (command == "CLEAR_STATIONS") {
@@ -123,10 +135,10 @@ void selectNextStation() {
   currentStation = next;
   currentStationCode = getStation(currentStation + 1);
   
-  // Only re-fetch if interval passed
-  if (millis() - lastApiFetch >= API_FETCH_INTERVAL) {
-      getTransitData(currentStationCode);
-      lastApiFetch = millis();
+  // Always fetch fresh data when switching to a new station
+  if (WiFi.status() == WL_CONNECTED) {
+    getTransitData(currentStationCode, currentStation);
+    lastApiFetch = millis();
   }
 }
 

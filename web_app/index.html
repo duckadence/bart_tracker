@@ -14,83 +14,88 @@
     <button id="connect">Connect ESP32</button>
 
     <div id="controls" class="controls hidden">
-      <!-- Wi-Fi Settings -->
-      <section class="section">
-        <h3>Wi-Fi Settings</h3>
-        <input type="text" id="wifiSSID" placeholder="Wi-Fi SSID">
-        <input type="password" id="wifiPass" placeholder="Wi-Fi Password">
-        <div class="button-group">
-          <button id="saveWifi" class="action-btn">Save Wi-Fi</button>
-          <button id="connectWifi" class="action-btn secondary">Connect Wi-Fi</button>
-        </div>
-      </section>
+      <!-- Two-column layout -->
+      <div class="column-layout">
+        <!-- Left Column -->
+        <div class="column">
+          <!-- Wi-Fi Settings -->
+          <section class="section">
+            <h3>Wi-Fi Settings</h3>
+            <input type="text" id="wifiSSID" placeholder="Wi-Fi SSID">
+            <input type="password" id="wifiPass" placeholder="Wi-Fi Password">
+            <div class="button-group">
+              <button id="saveWifi" class="action-btn">Save Wi-Fi</button>
+              <button id="connectWifi" class="action-btn secondary">Connect Wi-Fi</button>
+            </div>
+          </section>
 
-      <!-- Provider & API Settings -->
-      <section class="section">
-        <h3>Transit Provider</h3>
-        <select id="provider">
-          <option value="bart">BART</option>
-          <option value="muni">SF Muni (511.org)</option>
-          <option value="vta">VTA (511.org)</option>
-          <option value="caltrain">Caltrain (511.org)</option>
-          <option value="actransit">AC Transit (511.org)</option>
-          <option value="custom">Custom Endpoint</option>
-        </select>
-        <input type="text" id="apiKey" placeholder="API Key">
-        <input type="text" id="apiUrl" class="hidden" placeholder="Custom URL (use {station} & {key})">
-        <button id="saveProvider" class="action-btn">Save Provider Config</button>
-      </section>
+          <!-- Provider & API Settings -->
+          <section class="section">
+            <h3>Transit Provider</h3>
+            <select id="provider">
+              <option value="bart">BART</option>
+              <option value="muni">SF Muni (511.org)</option>
+              <option value="vta">VTA (511.org)</option>
+              <option value="caltrain">Caltrain (511.org)</option>
+              <option value="actransit">AC Transit (511.org)</option>
+              <option value="custom">Custom Endpoint</option>
+            </select>
+            <input type="text" id="apiKey" placeholder="API Key">
+            <input type="text" id="apiUrl" class="hidden" placeholder="Custom URL (use {station} & {key})">
+            <button id="saveProvider" class="action-btn">Save Provider Config</button>
+          </section>
+        </div>
 
-      <!-- Timing Settings -->
-      <section class="section">
-        <h3>Timing Settings</h3>
-        <input type="number" id="switchInterval" placeholder="Station Switch Interval (ms)">
-        <input type="number" id="apiInterval" placeholder="API Fetch Interval (ms)">
-        <button id="saveTiming" class="action-btn">Save Timing Settings</button>
-      </section>
+        <!-- Right Column -->
+        <div class="column">
+          <!-- Timing Settings -->
+          <section class="section">
+            <h3>Timing Settings</h3>
+            <input type="number" id="switchInterval" placeholder="Station Switch Interval (ms)">
+            <input type="number" id="apiInterval" placeholder="API Fetch Interval (ms)">
+            <button id="saveTiming" class="action-btn">Save Timing Settings</button>
+          </section>
 
-      <!-- Station Management -->
-      <section class="section">
-        <h3>Stations</h3>
-        <div class="button-group">
-            <button id="fetchStations" class="action-btn">Fetch Configured Stations</button>
+          <!-- Station Management -->
+          <section class="section">
+            <h3>Stations</h3>
+            <div class="button-group">
+                <button id="fetchStations" class="action-btn">Fetch Configured Stations</button>
+            </div>
+            <div id="stationList" class="station-list">
+              <p>No stations configured yet.</p>
+            </div>
+            <div class="inline-input">
+              <select id="stationSlot">
+                <option value="">Select Slot (1-10)</option>
+                <option value="1">Slot 1</option>
+                <option value="2">Slot 2</option>
+                <option value="3">Slot 3</option>
+                <option value="4">Slot 4</option>
+                <option value="5">Slot 5</option>
+                <option value="6">Slot 6</option>
+                <option value="7">Slot 7</option>
+                <option value="8">Slot 8</option>
+                <option value="9">Slot 9</option>
+                <option value="10">Slot 10</option>
+              </select>
+            </div>
+            <div class="station-search">
+              <div class="search-input-wrapper">
+                <input type="text" id="stationSearch" placeholder="Search for a stop (type 3+ chars) or enter code manually..." autocomplete="off">
+                <button id="useLocation" class="action-btn secondary" title="Find stops near me">📍 Use My Location</button>
+              </div>
+              <div id="searchResults" class="search-results hidden"></div>
+              <div class="manual-entry">
+                <small>Or enter stop code directly:</small>
+                <input type="text" id="stationCode" placeholder="Stop Code (e.g., 16001, EMBR)">
+              </div>
+            </div>
+            <button id="saveStation" class="action-btn">Add / Update Station</button>
+            <button id="clearStations" class="action-btn danger">Clear All Stations</button>
+          </section>
         </div>
-        <div id="stationList" class="station-list">
-          <p>No stations configured yet.</p>
-        </div>
-        
-        <div class="inline-input">
-          <select id="stationSlot">
-            <option value="">Select Slot (1-10)</option>
-            <option value="1">Slot 1</option>
-            <option value="2">Slot 2</option>
-            <option value="3">Slot 3</option>
-            <option value="4">Slot 4</option>
-            <option value="5">Slot 5</option>
-            <option value="6">Slot 6</option>
-            <option value="7">Slot 7</option>
-            <option value="8">Slot 8</option>
-            <option value="9">Slot 9</option>
-            <option value="10">Slot 10</option>
-          </select>
-        </div>
-        
-        <!-- Station Search/Selection -->
-        <div class="station-search">
-          <div class="search-input-wrapper">
-            <input type="text" id="stationSearch" placeholder="Search for a stop (type 3+ chars) or enter code manually..." autocomplete="off">
-            <button id="useLocation" class="action-btn secondary" title="Find stops near me">📍 Use My Location</button>
-          </div>
-          <div id="searchResults" class="search-results hidden"></div>
-          <div class="manual-entry">
-            <small>Or enter stop code directly:</small>
-            <input type="text" id="stationCode" placeholder="Stop Code (e.g., 16001, EMBR)">
-          </div>
-        </div>
-        
-        <button id="saveStation" class="action-btn">Add / Update Station</button>
-        <button id="clearStations" class="action-btn danger">Clear All Stations</button>
-      </section>
+      </div>
     </div>
   </main>
 
