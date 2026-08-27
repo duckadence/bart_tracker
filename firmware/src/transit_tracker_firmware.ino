@@ -99,10 +99,31 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
 void connectWiFi() {
   String ssid = prefs.getString("ssid", "");
   String password = prefs.getString("password", "");
-  if (ssid.isEmpty() || password.isEmpty()) return;
+  if (ssid.isEmpty() || password.isEmpty()) {
+    Serial.println(F("WiFi: No credentials saved"));
+    return;
+  }
+  
+  Serial.print(F("WiFi: Connecting to "));
+  Serial.print(ssid);
+  Serial.println(F("..."));
+  
   WiFi.begin(ssid.c_str(), password.c_str());
   unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) delay(250);
+  
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+    delay(250);
+    Serial.print(F("."));
+  }
+  Serial.println();
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(F("WiFi: Connected successfully"));
+    Serial.print(F("WiFi: IP Address: "));
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println(F("WiFi: Connection failed"));
+  }
 }
 
 String getStation(int index) {
@@ -184,9 +205,38 @@ void setup() {
 
 void loop() {
   unsigned long now = millis();
-  if (WiFi.status() == WL_CONNECTED && now - lastStationChange >= STATION_SWITCH_INTERVAL) {
+  
+  // Wi-Fi reconnect check
+  if (WiFi.status() != WL_CONNECTED && now - lastWiFiAttempt >= WIFI_RETRY_INTERVAL) {
+    lastWiFiAttempt = now;
+    connectWiFi();
+  }
+
+  // Only cycle stations if we have at least one configured
+  bool hasStations = false;
+  for (int i = 1; i <= MAX_STATIONS; i++) {
+    if (!getStation(i).isEmpty()) {
+      hasStations = true;
+      break;
+    }
+  }
+  
+  if (WiFi.status() == WL_CONNECTED && hasStations && now - lastStationChange >= STATION_SWITCH_INTERVAL) {
     lastStationChange = now;
     selectNextStation();
   }
+  
+  // Periodic status update every 30 seconds
+  static unsigned long lastStatusUpdate = 0;
+  if (now - lastStatusUpdate >= 30000) {
+    lastStatusUpdate = now;
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println(F("Status: WiFi connected, waiting for station cycle"));
+    } else {
+      Serial.println(F("Status: WiFi disconnected, attempting to reconnect..."));
+    }
+  }
+  
   delay(10);
 }
