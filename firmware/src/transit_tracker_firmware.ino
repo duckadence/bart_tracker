@@ -342,13 +342,22 @@ String getBartColorName(const char* hexColor) {
   String color(hexColor);
   color.toUpperCase();
   
-  if (color == "#FF0000") return "Red";
-  if (color == "#FFFF00") return "Yellow";
-  if (color == "#00FF00") return "Green";
-  if (color == "#0000FF") return "Blue";
-  if (color == "#FFA500") return "Orange";
+  // Handle BART API specific hex colors (from API documentation)
+  if (color == "#FF0000" || color == "#E31837") return "Red";
+  if (color == "#FFFF00" || color == "#F9D616") return "Yellow";
+  if (color == "#00FF00" || color == "#00A651") return "Green";
+  if (color == "#0000FF" || color == "#0069A5") return "Blue";
+  if (color == "#FFA500" || color == "#EE7C00") return "Orange";
   
-  return color; // Return the hex code itself if no mapping found
+  // Handle text color names from API
+  if (color == "#FF0000" || color == "RED") return "Red";
+  if (color == "#FFFF00" || color == "YELLOW") return "Yellow";
+  if (color == "#00FF00" || color == "#00AF4D" || color == "GREEN") return "Green";
+  if (color == "#0000FF" || color == "BLUE") return "Blue";
+  if (color == "#FFA500" || color == "ORANGE") return "Orange";
+  
+  // If it's an abbreviation (like R, Y, G, B, O) or destination name, return as-is
+  return color;
 }
 
 void parseBARTJson(JsonDocument &doc) {
