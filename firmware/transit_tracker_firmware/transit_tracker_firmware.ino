@@ -9,8 +9,16 @@
 
 #define MAX_STATIONS 10
 
-const unsigned long STATION_INTERVAL = 10000;
+// Rate limiting: 60 calls/hour = 1 call/minute
+// With 10 stations, that's 6 minutes per full cycle
+const unsigned long STATION_INTERVAL = 60000; // 1 minute between station changes
 const unsigned long WIFI_RETRY_INTERVAL = 30000;
+
+// Track API calls to respect rate limits
+unsigned long lastApiCallTime = 0;
+int apiCallCount = 0;
+const int MAX_API_CALLS_PER_HOUR = 60;
+const unsigned long API_RESET_PERIOD = 3600000; // 1 hour in milliseconds
 
 Preferences prefs;
 
@@ -228,11 +236,38 @@ int findNextStation() {
 // GENERIC TRANSIT API FETCHING
 // ==================================================
 
+// Check if we can make an API call (rate limiting for 511.org)
+bool canMakeApiCall() {
+  unsigned long now = millis();
+  
+  // Reset counter if an hour has passed
+  if (now - lastApiCallTime >= API_RESET_PERIOD) {
+    apiCallCount = 0;
+    lastApiCallTime = now;
+  }
+  
+  return apiCallCount < MAX_API_CALLS_PER_HOUR;
+}
+
+void recordApiCall() {
+  apiCallCount++;
+  lastApiCallTime = millis();
+}
+
 void getTransitData(const String &station) {
   if (station.isEmpty() || WiFi.status() != WL_CONNECTED)
     return;
 
+  // Check rate limit for 511.org APIs
   String provider = prefs.getString("provider", F("bart"));
+  provider.toLowerCase();
+  bool is511Provider = (provider == "511" || provider == "muni" || provider == "vta" || provider == "caltrain");
+  
+  if (is511Provider && !canMakeApiCall()) {
+    Serial.println(F("Rate limit reached, skipping API call"));
+    return;
+  }
+
   String apiKey = prefs.getString("apiKey", F("MW9S-E7SL-26DU-VV8V")); // Fallback default BART key
   String customUrl = prefs.getString("apiUrl", "");
   
