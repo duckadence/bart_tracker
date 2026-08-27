@@ -12,7 +12,7 @@
 // Timing defaults
 unsigned long STATION_SWITCH_INTERVAL = 60000; // 1 minute
 unsigned long API_FETCH_INTERVAL = 300000;    // 5 minutes
-const unsigned long WIFI_RETRY_INTERVAL = 30000;
+const unsigned long WIFI_RETRY_INTERVAL = 5000;
 
 Preferences prefs;
 NimBLECharacteristic *characteristic = nullptr;
