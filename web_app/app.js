@@ -42,28 +42,44 @@ let stationOptions = {
   ]
 };
 
-// Load external stations
-fetch('data/stations.json')
-  .then(response => response.json())
-  .then(data => {
-    stationOptions = data;
-    console.log("Stations loaded successfully");
-  })
-  .catch(error => {
-    console.warn("Could not load stations.json, using fallback:", error);
-  });
+// ... existing code ...
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Load external stations
+  try {
+    fetch('data/stations.json')
+      .then(response => response.json())
+      .then(data => {
+        stationOptions = data;
+        console.log("Stations loaded successfully");
+        // Trigger initial station population
+        providerSelect.dispatchEvent(new Event('change'));
+      })
+      .catch(error => {
+        console.warn("Could not load stations.json, using fallback:", error);
+        // Trigger initial station population with fallback
+        providerSelect.dispatchEvent(new Event('change'));
+      });
+  } catch (error) {
+    console.warn("Fetch API not available, using fallback:", error);
+    // Trigger initial station population with fallback
+    providerSelect.dispatchEvent(new Event('change'));
+  }
+});
 
 // Update station dropdown when provider changes
+// ... existing code ...
 providerSelect.addEventListener("change", () => {
   if (providerSelect.value === "custom") {
     apiUrl.classList.remove("hidden");
   } else {
     apiUrl.classList.add("hidden");
   }
-  
+    
   // Clear and repopulate station dropdown
   stationCode.innerHTML = '<option value="">Select a Station</option>';
   const options = stationOptions[providerSelect.value] || [];
+  console.log(`Updating stations for ${providerSelect.value}:`, options);
   options.forEach(opt => {
     const el = document.createElement("option");
     el.value = opt.code;
