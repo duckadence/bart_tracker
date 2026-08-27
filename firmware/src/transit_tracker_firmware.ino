@@ -335,6 +335,22 @@ void getTransitData(const String &station) {
 // PARSERS
 // ==================================================
 
+// Helper function to map hex colors to names
+String getBartColorName(const char* hexColor) {
+  if (hexColor == nullptr) return "Train";
+  
+  String color(hexColor);
+  color.toUpperCase();
+  
+  if (color == "#FF0000") return "Red";
+  if (color == "#FFFF00") return "Yellow";
+  if (color == "#00FF00") return "Green";
+  if (color == "#0000FF") return "Blue";
+  if (color == "#FFA500") return "Orange";
+  
+  return color; // Return the hex code itself if no mapping found
+}
+
 void parseBARTJson(JsonDocument &doc) {
   JsonArray stations = doc["root"]["station"].as<JsonArray>();
   if (stations.isNull()) return;
@@ -349,24 +365,10 @@ void parseBARTJson(JsonDocument &doc) {
     if (trains.isNull()) continue;
 
     for (JsonObject train : trains) {
-      // Try to get color first
-      const char *color = train["color"] | nullptr;
+      // Get the color identifier
+      const char *rawColor = train["color"] | train["abbreviation"] | train["destination"] | "Train";
+      String color = getBartColorName(rawColor);
       
-      // If color is missing or empty, try abbreviation
-      if (color == nullptr || strlen(color) == 0) {
-        color = train["abbreviation"] | nullptr;
-      }
-      
-      // If both color and abbreviation are missing, try destination
-      if (color == nullptr || strlen(color) == 0) {
-        color = train["destination"] | nullptr;
-      }
-      
-      // If all else fails, use a default value
-      if (color == nullptr || strlen(color) == 0) {
-        color = "Train";
-      }
-
       JsonArray estimates = train["estimate"].as<JsonArray>();
       if (estimates.isNull()) continue;
 
