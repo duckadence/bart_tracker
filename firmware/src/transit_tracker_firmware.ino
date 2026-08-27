@@ -349,9 +349,22 @@ void parseBARTJson(JsonDocument &doc) {
     if (trains.isNull()) continue;
 
     for (JsonObject train : trains) {
-      const char *color = train["color"] | "?";
+      // Try to get color first
+      const char *color = train["color"] | nullptr;
+      
+      // If color is missing or empty, try abbreviation
       if (color == nullptr || strlen(color) == 0) {
-        color = train["abbreviation"] | "?";
+        color = train["abbreviation"] | nullptr;
+      }
+      
+      // If both color and abbreviation are missing, try destination
+      if (color == nullptr || strlen(color) == 0) {
+        color = train["destination"] | nullptr;
+      }
+      
+      // If all else fails, use a default value
+      if (color == nullptr || strlen(color) == 0) {
+        color = "Train";
       }
 
       JsonArray estimates = train["estimate"].as<JsonArray>();
