@@ -158,12 +158,27 @@ void getTransitData(const String &station) {
     return;
   }
 
-  if (!apiUrlSet) {
+  String apiUrl = "";
+  String apiKey = "";
+  if (apiUrlSet) {
+    apiUrl = prefs.getString("apiUrl", "");
+    apiKey = prefs.getString("apiKey", "");
+  } else {
+    // Fallback defaults for BART
+    String provider = prefs.getString("provider", "");
+    if (provider.equalsIgnoreCase("bart")) {
+      apiUrl = "https://api.bart.gov/api/etd.aspx?cmd=etd&orig=";
+      apiKey = prefs.getString("apiKey", "MW9S-E7SL-26DU-VV8V"); // default key
+    } else {
+      // For other providers, we still need a URL; if not set, abort.
+      Serial.println(F("No API URL set"));
+      return;
+    }
+  }
+  if (apiUrl.isEmpty()) {
     Serial.println(F("No API URL set"));
     return;
   }
-  String apiUrl = prefs.getString("apiUrl", "");
-  String apiKey = prefs.getString("apiKey", "");
 
   // Build final URL: we assume the user has set a valid URL via BLE
   // that includes any necessary station and key parameters.
