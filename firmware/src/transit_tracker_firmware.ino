@@ -72,7 +72,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
         
         // Force API fetch for this station if WiFi is connected
         if (WiFi.status() == WL_CONNECTED) {
-          getTransitData(stationCode, stationNumber - 1);
+          getTransitData(stationCode);
           lastApiFetch = millis();
         }
       }
@@ -158,7 +158,7 @@ void selectNextStation() {
   
   // Always fetch fresh data when switching to a new station
   if (WiFi.status() == WL_CONNECTED) {
-    getTransitData(currentStationCode, currentStation);
+    getTransitData(currentStationCode);
     lastApiFetch = millis();
   }
 }
