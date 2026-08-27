@@ -16,6 +16,7 @@ const unsigned long WIFI_RETRY_INTERVAL = 30000;
 
 Preferences prefs;
 NimBLECharacteristic *characteristic = nullptr;
+bool stationSet[MAX_STATIONS] = {false};
 
 unsigned long lastStationChange = 0;
 unsigned long lastApiFetch = 0;
@@ -64,6 +65,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
         String key = "station" + String(stationNumber);
         String stationCode = command.substring(equalsPos + 1);
         prefs.putString(key.c_str(), stationCode);
+        stationSet[stationNumber - 1] = true;
         
         Serial.print(F("Station "));
         Serial.print(stationNumber);
@@ -80,6 +82,7 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
       for (int i = 1; i <= MAX_STATIONS; i++) {
         char key[10]; snprintf(key, sizeof(key), "station%d", i);
         prefs.remove(key);
+        stationSet[i-1] = false;
       }
       currentStation = -1;
     }
@@ -87,8 +90,10 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
         // Send stations back via notify (simplified for now by printing)
         Serial.println(F("CONFIGURED_STATIONS:"));
         for(int i=1; i<=MAX_STATIONS; i++) {
-            String s = getStation(i);
-            if(!s.isEmpty()) { Serial.print(i); Serial.print(":"); Serial.println(s); }
+            if (stationSet[i-1]) {
+                String s = getStation(i);
+                Serial.print(i); Serial.print(":"); Serial.println(s);
+            }
         }
     }
     else if (command == "WIFI_CONNECT") connectWiFi();
@@ -133,7 +138,7 @@ String getStation(int index) {
 int findNextStation() {
   for (int i = 0; i < MAX_STATIONS; i++) {
     int index = (currentStation + 1 + i) % MAX_STATIONS;
-    if (!getStation(index + 1).isEmpty()) return index;
+    if (stationSet[index]) return index;
   }
   return -1;
 }
@@ -240,8 +245,8 @@ void loop() {
 
   // Only cycle stations if we have at least one configured
   bool hasStations = false;
-  for (int i = 1; i <= MAX_STATIONS; i++) {
-    if (!getStation(i).isEmpty()) {
+  for (int i = 0; i < MAX_STATIONS; i++) {
+    if (stationSet[i]) {
       hasStations = true;
       break;
     }
