@@ -15,13 +15,36 @@ const apiUrl = document.getElementById("apiUrl");
 const stationNum = document.getElementById("stationNum");
 const stationCode = document.getElementById("stationCode");
 
-// Show/hide Custom URL input based on dropdown choice
+// Station options map
+const stationOptions = {
+  bart: [
+    { code: "EMBR", name: "Embarcadero" },
+    { code: "MONT", name: "Montgomery St." },
+    { code: "POWL", name: "Powell St." }
+  ],
+  muni: [
+    { code: "16345", name: "Market St & 5th St" },
+    { code: "13204", name: "California St & Davis St" }
+  ]
+};
+
+// Update station dropdown when provider changes
 providerSelect.addEventListener("change", () => {
   if (providerSelect.value === "custom") {
     apiUrl.classList.remove("hidden");
   } else {
     apiUrl.classList.add("hidden");
   }
+  
+  // Clear and repopulate station dropdown
+  stationCode.innerHTML = '<option value="">Select a Station</option>';
+  const options = stationOptions[providerSelect.value] || [];
+  options.forEach(opt => {
+    const el = document.createElement("option");
+    el.value = opt.code;
+    el.textContent = opt.name;
+    stationCode.appendChild(el);
+  });
 });
 
 connectButton.addEventListener("click", connect);

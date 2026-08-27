@@ -46,7 +46,9 @@
         <h3>Stations</h3>
         <div class="inline-input">
           <input type="number" id="stationNum" min="1" max="10" placeholder="Slot (1-10)">
-          <input type="text" id="stationCode" placeholder="Stop / Station Code">
+          <select id="stationCode">
+            <option value="">Select a Station</option>
+          </select>
         </div>
         <button id="saveStation" class="action-btn">Add / Update Station</button>
         <button id="clearStations" class="action-btn danger">Clear All Stations</button>
