@@ -211,10 +211,13 @@ function updateStationListUI() {
 }
 
 async function connect() {
+  console.log("Connect button clicked");
   if (!navigator.bluetooth) {
+    console.error("Web Bluetooth is not supported");
     status.textContent = "Web Bluetooth is not supported on this browser.";
     return;
   }
+  console.log("Navigator bluetooth is supported");
 
   try {
     status.textContent = "Searching for ESP32...";
