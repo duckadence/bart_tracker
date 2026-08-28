@@ -213,8 +213,7 @@ void getTransitData(const String &station) {
     if (httpCode == HTTP_CODE_OK) {
       if (useBartFallback) {
         // Parse JSON and pretty print
-        JsonDocument doc;
-        doc.setCapacity(8192);
+        StaticJsonDocument<8192> doc;
         DeserializationError error = deserializeJson(doc, *http.getStreamPtr());
         if (!error) {
           serializeJsonPretty(doc, Serial);
