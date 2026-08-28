@@ -211,13 +211,33 @@ void getTransitData(const String &station) {
 
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
-      // Stream payload directly to Serial to avoid large String allocation
-      WiFiClient *stream = http.getStreamPtr();
-      while (stream->connected() && stream->available()) {
-        char c = stream->read();
-        Serial.write(c);
+      if (useBartFallback) {
+        // Parse JSON and pretty print
+        DynamicJsonDocument doc(8192);
+        DeserializationError error = deserializeJson(doc, http.getStreamPtr());
+        if (!error) {
+          serializeJsonPretty(doc, Serial);
+          Serial.println();
+        } else {
+          Serial.print(F("JSON parse error: "));
+          Serial.println(error.c_str());
+          // Fallback to raw stream
+          WiFiClient *stream = http.getStreamPtr();
+          while (stream->connected() && stream->available()) {
+            char c = stream->read();
+            Serial.write(c);
+          }
+          Serial.println();
+        }
+      } else {
+        // Stream payload directly to Serial to avoid large String allocation
+        WiFiClient *stream = http.getStreamPtr();
+        while (stream->connected() && stream->available()) {
+          char c = stream->read();
+          Serial.write(c);
+        }
+        Serial.println();
       }
-      Serial.println();
       lastApiFetch = now;
     }
   } else {
