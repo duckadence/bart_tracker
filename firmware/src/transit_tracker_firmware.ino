@@ -212,11 +212,29 @@ void getTransitData(const String &station) {
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
       if (useBartFallback) {
-        // Parse JSON and pretty print
+        // Parse JSON and print human-readable summary
         StaticJsonDocument<8192> doc;
         DeserializationError error = deserializeJson(doc, *http.getStreamPtr());
         if (!error) {
-          serializeJsonPretty(doc, Serial);
+          const char* stationName = doc["root"]["station"][0]["name"] | "Unknown";
+          const char* abbr = doc["root"]["station"][0]["abbr"] | "???";
+          Serial.print(abbr);
+          Serial.print(F(": "));
+          JsonArray etds = doc["root"]["station"][0]["etd"];
+          for (JsonObject etd : etds) {
+            const char* dest = etd["destination"] | "";
+            JsonArray estimates = etd["estimate"];
+            for (JsonObject est : estimates) {
+              const char* minutes = est["minutes"] | "-";
+              const char* direction = est["direction"] | "";
+              Serial.print(dest);
+              Serial.print(F(" "));
+              Serial.print(direction);
+              Serial.print(F(" "));
+              Serial.print(minutes);
+              Serial.print(F("min "));
+            }
+          }
           Serial.println();
         } else {
           Serial.print(F("JSON parse error: "));
