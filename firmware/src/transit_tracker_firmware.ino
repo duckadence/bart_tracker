@@ -283,9 +283,9 @@ void loop() {
     selectNextStation();
   }
   
-  // Periodic status update every 30 seconds
+  // Periodic status update every 60 seconds
   static unsigned long lastStatusUpdate = 0;
-  if (now - lastStatusUpdate >= 30000) {
+  if (now - lastStatusUpdate >= 60000) {
     lastStatusUpdate = now;
     
     if (WiFi.status() == WL_CONNECTED) {

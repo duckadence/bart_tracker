@@ -319,6 +319,13 @@ document.addEventListener('DOMContentLoaded', () => {
     sendBLECommand("GET_STATIONS");
   });
 
+  document.getElementById("clearStations").addEventListener("click", () => {
+    sendBLECommand("CLEAR_STATIONS");
+    configuredStations.fill(null);
+    updateStationListUI();
+    status.textContent = "All stations cleared";
+  });
+
   // Search functionality
   stationSearch.addEventListener("input", () => {
     clearTimeout(searchTimer);
