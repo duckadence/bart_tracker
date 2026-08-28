@@ -161,6 +161,7 @@ void getTransitData(const String &station) {
 
   String baseUrl = "";
   String apiKey = "";
+  bool useBartFallback = false;
   if (apiUrlSet) {
     baseUrl = prefs.getString("apiUrl", "");
     apiKey = prefs.getString("apiKey", "");
@@ -170,6 +171,7 @@ void getTransitData(const String &station) {
     if (provider.equalsIgnoreCase("bart")) {
       baseUrl = "https://api.bart.gov/api/etd.aspx?cmd=etd&orig=";
       apiKey = prefs.getString("apiKey", "MW9S-E7SL-26DU-VV8V"); // default key
+      useBartFallback = true;
     } else {
       // For other providers, we still need a URL; if not set, abort.
       Serial.println(F("No API URL set"));
@@ -188,6 +190,10 @@ void getTransitData(const String &station) {
     requestUrl += station;
   } else {
     requestUrl += station;
+  }
+  // For BART fallback, add JSON format flag
+  if (useBartFallback) {
+    requestUrl += "&json=y";
   }
   if (!apiKey.isEmpty()) {
     // Determine separator
