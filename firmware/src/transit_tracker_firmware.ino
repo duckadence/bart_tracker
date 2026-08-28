@@ -237,7 +237,7 @@ void getTransitData(const String &station) {
   http.begin(requestUrl);
   // Force HTTPS to skip cert verification (insecure but works)
   if (http.getStreamPtr()) {
-    static_cast<WiFiClient*>(http.getStreamPtr())->setInsecure();
+    static_cast<WiFiClientSecure*>(http.getStreamPtr())->setInsecure();
   }
   int httpCode = http.GET();
 
