@@ -301,10 +301,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const code = stationCode.value.trim();
     
     if (slot >= 1 && slot <= 10 && code) {
-      sendBLECommand(`STATION_${slot}=${code}`);
-      configuredStations[slot - 1] = code;
+      // Send plain STATION command (firmware expects this)
+      sendBLECommand(`STATION=${code}`);
+      // Keep track in first slot for UI consistency
+      configuredStations[0] = code;
+      // Clear other slots
+      for (let i = 1; i < configuredStations.length; i++) configuredStations[i] = null;
       updateStationListUI();
-      status.textContent = `Saved ${code} to slot ${slot}`;
+      status.textContent = `Saved ${code} to station`;
     } else {
       status.textContent = "Select a valid slot and station.";
     }
@@ -316,11 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById("fetchStations").addEventListener("click", () => {
-    sendBLECommand("GET_STATIONS");
+    sendBLECommand("GET_STATION");
   });
 
   document.getElementById("clearStations").addEventListener("click", () => {
-    sendBLECommand("CLEAR_STATIONS");
+    sendBLECommand("CLEAR");
     configuredStations.fill(null);
     updateStationListUI();
     status.textContent = "All stations cleared";
