@@ -213,8 +213,9 @@ void getTransitData(const String &station) {
     if (httpCode == HTTP_CODE_OK) {
       // Read response into a String (response is small, ~2KB)
       String response;
-      while (http.connected() && (http.available() || http.getStreamPtr()->available())) {
-        response += (char)http.getStreamPtr()->read();
+      WiFiClient *stream = http.getStreamPtr();
+      while (stream->connected() && stream->available()) {
+        response += (char)stream->read();
       }
       
       // Parse XML for station abbr and estimates
@@ -239,7 +240,8 @@ void getTransitData(const String &station) {
           }
           
           int estimatePos = response.indexOf("<estimate>", etdPos);
-          while (estimatePos >= 0 && estimatePos < response.indexOf("</etd>", etdPos)) {
+          int etdEnd = response.indexOf("</etd>", etdPos);
+          while (estimatePos >= 0 && estimatePos < etdEnd) {
             int minutesStart = response.indexOf("<minutes>", estimatePos);
             int minutesEnd = response.indexOf("</minutes>", minutesStart);
             int directionStart = response.indexOf("<direction>", estimatePos);
