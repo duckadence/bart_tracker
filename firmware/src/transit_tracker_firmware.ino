@@ -160,50 +160,78 @@ void getTransitData(const String &station) {
   }
 
   String baseUrl = "";
-  String apiKey = "";
-  bool useBartFallback = false;
+  String apiKey  = "";
+  bool   use511Fallback = false;
+
+  // ------------------------------------------------------------------
+  // 1️⃣  User‑supplied URL (highest priority)
+  // ------------------------------------------------------------------
   if (apiUrlSet) {
     baseUrl = prefs.getString("apiUrl", "");
-    apiKey = prefs.getString("apiKey", "");
-  } else {
-    // Fallback defaults for BART
+    apiKey  = prefs.getString("apiKey", "");
+  }
+  // ------------------------------------------------------------------
+  // 2️⃣  No user URL – try the built‑in 511 fallback
+  // ------------------------------------------------------------------
+  else {
     String provider = prefs.getString("provider", "");
-    if (provider.equalsIgnoreCase("bart")) {
-      baseUrl = "https://api.bart.gov/api/etd.aspx?cmd=etd&orig=";
-      apiKey = prefs.getString("apiKey", "MW9S-E7SL-26DU-VV8V"); // default key
-      useBartFallback = true;
-    } else {
-      // For other providers, we still need a URL; if not set, abort.
+    provider.toLowerCase();          // make comparison case‑insensitive
+
+    // If the user explicitly set a provider we know, use the 511 endpoint.
+    if (provider.length() > 0) {
+      // 511.org StopMonitoring endpoint (requires an agency parameter)
+      baseUrl = "https://api.511.org/transit/StopMonitoring?api_key=";
+      apiKey  = prefs.getString("apiKey", "");   // the 511 token
+      // We will append &agency=<provider>&stopcode=<station> later
+      use511Fallback = true;
+    }
+    // ------------------------------------------------------------------
+    // 3️⃣  Nothing set at all → give up (but keep the old message for debug)
+    // ------------------------------------------------------------------
+    else {
       Serial.println(F("No API URL set"));
       return;
     }
   }
-  if (baseUrl.isEmpty()) {
-    Serial.println(F("No API URL set"));
-    return;
-  }
 
-  // Build request URL: append station and API key if needed
+  // ------------------------------------------------------------------
+  // 4️⃣  Build the final request URL
+  // ------------------------------------------------------------------
   String requestUrl = baseUrl;
-  // Ensure we have a separator if needed
-  if (!baseUrl.endsWith("=") && !baseUrl.endsWith("&") && !baseUrl.endsWith("/")) {
-    requestUrl += station;
-  } else {
-    requestUrl += station;
-  }
-  // For BART fallback, add JSON format flag
-  if (useBartFallback) {
-    requestUrl += "&json=y";
-  }
-  if (!apiKey.isEmpty()) {
-    // Determine separator
-    if (requestUrl.endsWith("=") || requestUrl.endsWith("&")) {
+
+  // For the 511 fallback we need to add agency and stopcode
+  if (use511Fallback) {
+    // Append the API key (the URL already ends with "api_key=")
+    if (!apiKey.isEmpty()) {
       requestUrl += apiKey;
+    }
+    // Add agency
+    String provider = prefs.getString("provider", "");
+    requestUrl += "&agency=" + provider;
+    // Add stopcode placeholder – the station code will be appended right after
+    requestUrl += "&stopcode=";
+  }
+  // For a completely custom URL we just append the station (if needed)
+  else {
+    // Ensure we have a separator if needed
+    if (!baseUrl.endsWith("=") && !baseUrl.endsWith("&") && !baseUrl.endsWith("/")) {
+      requestUrl += station;
     } else {
-      requestUrl += "&key=" + apiKey;
+      requestUrl += station;
+    }
+    // If the user supplied an explicit API key, add it as &key=...
+    if (!apiKey.isEmpty()) {
+      if (requestUrl.endsWith("=") || requestUrl.endsWith("&")) {
+        requestUrl += apiKey;
+      } else {
+        requestUrl += "&key=" + apiKey;
+      }
     }
   }
 
+  // ------------------------------------------------------------------
+  // 5️⃣  Perform the HTTP GET
+  // ------------------------------------------------------------------
   HTTPClient http;
   http.setTimeout(8000);
   http.begin(requestUrl);
@@ -211,66 +239,13 @@ void getTransitData(const String &station) {
 
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
-      // Read response into a String (response is small, ~2KB)
-      String response;
+      // Stream payload directly to Serial to avoid large String allocation
       WiFiClient *stream = http.getStreamPtr();
       while (stream->connected() && stream->available()) {
-        response += (char)stream->read();
+        char c = stream->read();
+        Serial.write(c);
       }
-      
-      // Parse XML for station abbr and estimates
-      int stationStart = response.indexOf("<station>");
-      if (stationStart >= 0) {
-        int abbrStart = response.indexOf("<abbr>", stationStart);
-        int abbrEnd = response.indexOf("</abbr>", abbrStart);
-        if (abbrStart >= 0 && abbrEnd > abbrStart) {
-          String abbr = response.substring(abbrStart + 5, abbrEnd);
-          Serial.print(F("Station: "));
-          Serial.println(abbr);
-        }
-        
-        // Find all <etd> blocks
-        int etdPos = response.indexOf("<etd>", stationStart);
-        while (etdPos >= 0) {
-          int destStart = response.indexOf("<destination>", etdPos);
-          int destEnd = response.indexOf("</destination>", destStart);
-          String destination = "";
-          if (destStart >= 0 && destEnd > destStart) {
-            destination = response.substring(destStart + 12, destEnd);
-          }
-          
-          int estimatePos = response.indexOf("<estimate>", etdPos);
-          int etdEnd = response.indexOf("</etd>", etdPos);
-          while (estimatePos >= 0 && estimatePos < etdEnd) {
-            int minutesStart = response.indexOf("<minutes>", estimatePos);
-            int minutesEnd = response.indexOf("</minutes>", minutesStart);
-            int directionStart = response.indexOf("<direction>", estimatePos);
-            int directionEnd = response.indexOf("</direction>", directionStart);
-            String minutes = "-";
-            String direction = "";
-            if (minutesStart >= 0 && minutesEnd > minutesStart) {
-              minutes = response.substring(minutesStart + 8, minutesEnd);
-            }
-            if (directionStart >= 0 && directionEnd > directionStart) {
-              direction = response.substring(directionStart + 10, directionEnd);
-            }
-            Serial.print(destination);
-            Serial.print(F(" | "));
-            Serial.print(direction);
-            Serial.print(F(" | "));
-            Serial.print(minutes);
-            Serial.println(F(" min"));
-            
-            estimatePos = response.indexOf("<estimate>", estimatePos + 1);
-          }
-          
-          etdPos = response.indexOf("<etd>", etdPos + 1);
-        }
-      } else {
-        // Fallback: just print raw response
-        Serial.println(response);
-      }
-      Serial.println(); // blank line after each fetch
+      Serial.println();
       lastApiFetch = now;
     }
   } else {
