@@ -1,356 +1,293 @@
+/*  Minimal BART‑only Transit Tracker
+ *  - Single station (first one stored via BLE)
+ *  - Wi‑Fi optional (if ssid/password saved)
+ *  - Prints a simple, human‑readable prediction list to Serial
+ */
+
 #include <NimBLEDevice.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
 #include <Preferences.h>
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-#define MAX_STATIONS 10
-
-// Timing defaults
-unsigned long STATION_SWITCH_INTERVAL = 60000; // 1 minute
-unsigned long API_FETCH_INTERVAL = 300000;    // 5 minutes
-const unsigned long WIFI_RETRY_INTERVAL = 5000;
-
 Preferences prefs;
 NimBLECharacteristic *characteristic = nullptr;
-bool stationSet[MAX_STATIONS] = {false};
-bool apiUrlSet = false;
 
-unsigned long lastStationChange = 0;
-unsigned long lastApiFetch = 0;
-unsigned long lastWiFiAttempt = 0;
+bool   ssidSet   = false;
+bool   passwordSet = false;
+bool   stationSet = false;
+String storedSsid;
+String storedPassword;
+String storedStation;   // the BART abbreviation, e.g. "MLPT"
 
-int currentStation = -1;
-String currentStationCode;
-String cachedTransitData = "";
-bool pendingFetch = false;
-String pendingStation;
+unsigned long lastFetch = 0;
+const unsigned long FETCH_INTERVAL = 30000;   // 30 seconds between fetches
 
-// Function prototypes
-void connectWiFi();
-void getTransitData(const String &station);
-void parseBARTJson(JsonDocument &doc);
-void parse511Json(JsonDocument &doc);
-String getStation(int index);
-int findNextStation();
-void selectNextStation();
-
+// ------------------------------------------------------------------
+// BLE Callbacks – only the commands we need
+// ------------------------------------------------------------------
 class ConfigCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic *pCharacteristic) override {
     std::string value = pCharacteristic->getValue();
     if (value.empty()) return;
 
-    String command = String(value.c_str());
+    String cmd = String(value.c_str());
     Serial.print(F("BLE: "));
-    Serial.println(command);
+    Serial.println(cmd);
 
-    if (command.startsWith("WIFI_SSID=")) prefs.putString("ssid", command.substring(10));
-    else if (command.startsWith("WIFI_PASS=")) prefs.putString("password", command.substring(10));
-    else if (command.startsWith("PROVIDER=")) prefs.putString("provider", command.substring(9));
-    else if (command.startsWith("API_KEY=")) prefs.putString("apiKey", command.substring(8));
-    else if (command.startsWith("API_URL=")) {
-            prefs.putString("apiUrl", command.substring(8));
-            apiUrlSet = true;
-          }
-    else if (command.startsWith("SWITCH_INT=")) {
-        STATION_SWITCH_INTERVAL = command.substring(11).toInt();
-        prefs.putULong("switchInt", STATION_SWITCH_INTERVAL);
+    if (cmd.startsWith("WIFI_SSID=")) {
+      storedSsid = cmd.substring(10);
+      ssidSet = true;
+      prefs.putString("ssid", storedSsid);
+      Serial.println(F("Wi‑Fi SSID saved"));
     }
-    else if (command.startsWith("API_INT=")) {
-        API_FETCH_INTERVAL = command.substring(8).toInt();
-        prefs.putULong("apiInt", API_FETCH_INTERVAL);
+    else if (cmd.startsWith("WIFI_PASS=")) {
+      storedPassword = cmd.substring(10);
+      passwordSet = true;
+      prefs.putString("password", storedPassword);
+      Serial.println(F("Wi‑Fi password saved"));
     }
-    else if (command.startsWith("STATION_")) {
-      int equalsPos = command.indexOf('=');
-      if (equalsPos < 0) return;
-      int stationNumber = command.substring(8, equalsPos).toInt();
-      if (stationNumber >= 1 && stationNumber <= MAX_STATIONS) {
-        String key = "station" + String(stationNumber);
-        String stationCode = command.substring(equalsPos + 1);
-        prefs.putString(key.c_str(), stationCode);
-        stationSet[stationNumber - 1] = true;
-        
-        Serial.print(F("Station "));
-        Serial.print(stationNumber);
-        Serial.print(F(" saved: "));
-        Serial.println(stationCode);
-        
-        // Defer the HTTP request
-        pendingFetch   = true;
-        pendingStation = stationCode;
+    else if (cmd.startsWith("STATION=")) {
+      storedStation = cmd.substring(8);
+      stationSet = true;
+      prefs.putString("station", storedStation);
+      Serial.print(F("Station saved: "));
+      Serial.println(storedStation);
+    }
+    else if (cmd == "WIFI_CONNECT") {
+      connectWiFi();
+    }
+    else if (cmd == "GET_STATION") {
+      // Echo back the single stored station (useful for the web app)
+      if (stationSet) {
+        String reply = "1:" + storedStation;
+        sendNotify(reply);
+      } else {
+        sendNotify("none");
       }
     }
-    else if (command == "CLEAR_STATIONS") {
-      for (int i = 1; i <= MAX_STATIONS; i++) {
-        char key[10]; snprintf(key, sizeof(key), "station%d", i);
-        prefs.remove(key);
-        stationSet[i-1] = false;
-      }
-      currentStation = -1;
+    else if (cmd == "CLEAR") {
+      ssidSet = passwordSet = stationSet = false;
+      storedSsid = storedPassword = storedStation = "";
+      prefs.remove("ssid");
+      prefs.remove("password");
+      prefs.remove("station");
+      Serial.println(F("All settings cleared"));
     }
-    else if (command == "GET_STATIONS") {
-        // Send stations back via notify (simplified for now by printing)
-        Serial.println(F("CONFIGURED_STATIONS:"));
-        for(int i=1; i<=MAX_STATIONS; i++) {
-            if (stationSet[i-1]) {
-                String s = getStation(i);
-                Serial.print(i); Serial.print(":"); Serial.println(s);
-            }
-        }
-    }
-    else if (command == "WIFI_CONNECT") connectWiFi();
   }
 };
 
+// ------------------------------------------------------------------
+// Helper: send a string as a BLE notification (max 20 bytes per packet)
+// ------------------------------------------------------------------
+void sendNotify(const String &msg) {
+  const uint8_t *data = (const uint8_t *)msg.c_str();
+  size_t len = msg.length();
+  size_t offset = 0;
+  while (offset < len) {
+    size_t chunk = min(20u, len - offset);
+    characteristic->setValue(data + offset, chunk);
+    characteristic->notify();
+    offset += chunk;
+  }
+}
+
+// ------------------------------------------------------------------
+// Wi‑Fi connection (uses saved credentials if present)
+// ------------------------------------------------------------------
 void connectWiFi() {
-  String ssid = prefs.getString("ssid", "");
-  String password = prefs.getString("password", "");
-  if (ssid.isEmpty() || password.isEmpty()) {
-    Serial.println(F("WiFi: No credentials saved"));
+  if (!ssidSet || !passwordSet) {
+    Serial.println(F("Wi‑Fi: No credentials saved"));
     return;
   }
-  
-  Serial.print(F("WiFi: Connecting to "));
-  Serial.print(ssid);
-  Serial.println(F("..."));
-  
-  WiFi.begin(ssid.c_str(), password.c_str());
+
+  Serial.print(F("Wi‑Fi: Connecting to "));
+  Serial.println(storedSsid);
+  WiFi.begin(storedSsid.c_str(), storedPassword.c_str());
+
   unsigned long start = millis();
-  
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 1000) {
-    delay(250);
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+    delay(500);
     Serial.print(F("."));
   }
   Serial.println();
-  
+
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println(F("WiFi: Connected successfully"));
-    Serial.print(F("WiFi: IP Address: "));
+    Serial.println(F("Wi‑Fi: Connected"));
+    Serial.print(F("IP: "));
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println(F("WiFi: Connection failed"));
+    Serial.println(F("Wi‑Fi: Connection failed"));
   }
 }
 
-String getStation(int index) {
-  char key[10]; snprintf(key, sizeof(key), "station%d", index);
-  return prefs.getString(key, "");
-}
-
-int findNextStation() {
-  for (int i = 0; i < MAX_STATIONS; i++) {
-    int index = (currentStation + 1 + i) % MAX_STATIONS;
-    if (stationSet[index]) return index;
-  }
-  return -1;
-}
-
-void getTransitData(const String &station) {
-  // Rate limiting: only fetch every API_FETCH_INTERVAL
-  unsigned long now = millis();
-  if (now - lastApiFetch < API_FETCH_INTERVAL) {
+// ------------------------------------------------------------------
+// Fetch BART predictions for the stored station and print them
+// ------------------------------------------------------------------
+void fetchAndPrintBART() {
+  if (!stationSet) {
+    Serial.println(F("No station configured"));
     return;
   }
-
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(F("Wi‑Fi not connected"));
     return;
   }
 
-  String baseUrl = "";
-  String apiKey  = "";
-  bool   use511Fallback = false;
+  // Build the BART API URL (XML output)
+  String url = "https://api.bart.gov/api/etd.aspx?cmd=etd&orig=";
+  url += storedStation;
+  url += "&key=MW9S-E7SL-26DU-VV8V";   // public demo key
 
-  // ------------------------------------------------------------------
-  // 1️⃣  User‑supplied URL (highest priority)
-  // ------------------------------------------------------------------
-  if (apiUrlSet) {
-    baseUrl = prefs.getString("apiUrl", "");
-    apiKey  = prefs.getString("apiKey", "");
-  }
-  // ------------------------------------------------------------------
-  // 2️⃣  No user URL – try the built‑in 511 fallback
-  // ------------------------------------------------------------------
-  else {
-    String provider = prefs.getString("provider", "");
-    provider.toLowerCase();          // make comparison case‑insensitive
-
-    // If the user explicitly set a provider we know, use the 511 endpoint.
-    if (provider.length() > 0) {
-      // 511.org StopMonitoring endpoint (requires an agency parameter)
-      baseUrl = "https://api.511.org/transit/StopMonitoring?api_key=";
-      apiKey  = prefs.getString("apiKey", "");   // the 511 token
-      // We will append &agency=<provider>&stopcode=<station> later
-      use511Fallback = true;
-    }
-    // ------------------------------------------------------------------
-    // 3️⃣  Nothing set at all → give up (but keep the old message for debug)
-    // ------------------------------------------------------------------
-    else {
-      Serial.println(F("No API URL set"));
-      return;
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // 4️⃣  Build the final request URL
-  // ------------------------------------------------------------------
-  String requestUrl = baseUrl;
-
-  // For the 511 fallback we need to add agency and stopcode
-  if (use511Fallback) {
-    // Append the API key (the URL already ends with "api_key=")
-    if (!apiKey.isEmpty()) {
-      requestUrl += apiKey;
-    }
-    // Add agency
-    String provider = prefs.getString("provider", "");
-    requestUrl += "&agency=" + provider;
-    // Add stopcode placeholder – the station code will be appended right after
-    requestUrl += "&stopcode=";
-  }
-  // For a completely custom URL we just append the station (if needed)
-  else {
-    // Ensure we have a separator if needed
-    if (!baseUrl.endsWith("=") && !baseUrl.endsWith("&") && !baseUrl.endsWith("/")) {
-      requestUrl += station;
-    } else {
-      requestUrl += station;
-    }
-    // If the user supplied an explicit API key, add it as &key=...
-    if (!apiKey.isEmpty()) {
-      if (requestUrl.endsWith("=") || requestUrl.endsWith("&")) {
-        requestUrl += apiKey;
-      } else {
-        requestUrl += "&key=" + apiKey;
-      }
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // 5️⃣  Perform the HTTP GET
-  // ------------------------------------------------------------------
   HTTPClient http;
   http.setTimeout(8000);
-  http.begin(requestUrl);
-  // Force HTTPS to skip cert verification (insecure but works)
+  http.begin(url);
+
+  // BART uses HTTPS – skip cert verification (simple & works on most networks)
   if (http.getStreamPtr()) {
     static_cast<WiFiClientSecure*>(http.getStreamPtr())->setInsecure();
   }
-  int httpCode = http.GET();
 
-  if (httpCode > 0) {
-    if (httpCode == HTTP_CODE_OK) {
-      // Stream payload directly to Serial to avoid large String allocation
-      WiFiClient *stream = http.getStreamPtr();
-      while (stream->connected() && stream->available()) {
-        char c = stream->read();
-        Serial.write(c);
-      }
-      Serial.println();
-      lastApiFetch = now;
+  int httpCode = http.GET();
+  if (httpCode > 0 && httpCode == HTTP_CODE_OK) {
+    WiFiClient *stream = http.getStreamPtr();
+    String response;
+    while (stream->connected() && stream->available()) {
+      response += (char)stream->read();
     }
+
+    // ---- Very lightweight XML parsing ----
+    // Find <abbr> (station name)
+    int abbrStart = response.indexOf("<abbr>");
+    String stationName = "???";
+    if (abbrStart >= 0) {
+      int abbrEnd = response.indexOf("</abbr>", abbrStart);
+      if (abbrEnd > abbrStart) {
+        stationName = response.substring(abbrStart + 5, abbrEnd);
+      }
+    }
+    Serial.print(F("Station: "));
+    Serial.println(stationName);
+
+    // Find each <etd> block
+    int etdPos = response.indexOf("<etd>");
+    while (etdPos >= 0) {
+      // Destination
+      int destStart = response.indexOf("<destination>", etdPos);
+      int destEnd   = response.indexOf("</destination>", destStart);
+      String destination = "-";
+      if (destStart >= 0 && destEnd > destStart) {
+        destination = response.substring(destStart + 12, destEnd);
+      }
+
+      // Loop through each <estimate> inside this <etd>
+      int estPos = response.indexOf("<estimate>", etdPos);
+      int etdEnd = response.indexOf("</etd>", etdPos);
+      while (estPos >= 0 && estPos < etdEnd) {
+        int minsStart = response.indexOf("<minutes>", estPos);
+        int minsEnd   = response.indexOf("</minutes>", minsStart);
+        int dirStart  = response.indexOf("<direction>", estPos);
+        int dirEnd    = response.indexOf("</direction>", dirStart);
+
+        String minutes = "-";
+        String direction = "-";
+        if (minsStart >= 0 && minsEnd > minsStart) {
+          minutes = response.substring(minsStart + 8, minsEnd);
+        }
+        if (dirStart >= 0 && dirEnd > dirStart) {
+          direction = response.substring(dirStart + 10, dirEnd);
+        }
+
+        Serial.print(destination);
+        Serial.print(F(" | "));
+        Serial.print(direction);
+        Serial.print(F(" | "));
+        Serial.print(minutes);
+        Serial.println(F(" min"));
+
+        estPos = response.indexOf("<estimate>", estPos + 1);
+      }
+
+      etdPos = response.indexOf("<etd>", etdPos + 1);
+    }
+    Serial.println();   // blank line after each fetch
   } else {
-    Serial.printf("[HTTP] GET failed, error: %s\n", http.errorToString(httpCode).c_str());
+    Serial.print(F("[HTTP] GET failed, error: "));
+    Serial.println(http.errorToString(httpCode).c_str());
   }
   http.end();
 }
 
-void selectNextStation() {
-  int next = findNextStation();
-  if (next < 0) return;
-  currentStation = next;
-  currentStationCode = getStation(currentStation + 1);
-  
-  // Defer the HTTP request
-  pendingFetch   = true;
-  pendingStation = currentStationCode;
-}
-
+// ------------------------------------------------------------------
+// Setup
+// ------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
   prefs.begin("transit", false);
-  STATION_SWITCH_INTERVAL = prefs.getULong("switchInt", 60000);
-  API_FETCH_INTERVAL = prefs.getULong("apiInt", 300000);
 
-  // BLE Setup
+  // Load saved values (if any)
+  storedSsid   = prefs.getString("ssid", "");
+  ssidSet      = !storedSsid.isEmpty();
+  storedPassword = prefs.getString("password", "");
+  passwordSet  = !storedPassword.isEmpty();
+  storedStation = prefs.getString("station", "");
+  stationSet   = !storedStation.isEmpty();
+
+  // BLE init
   NimBLEDevice::init("TransitTracker");
-  Serial.println("BLE: Device initialized");
-  
+  Serial.println(F("BLE: Device initialized"));
+
   NimBLEServer *server = NimBLEDevice::createServer();
-  Serial.println("BLE: Server created");
-  
+  Serial.println(F("BLE: Server created"));
+
   NimBLEService *service = server->createService(SERVICE_UUID);
-  Serial.println("BLE: Service created");
-  
+  Serial.println(F("BLE: Service created"));
+
   characteristic = service->createCharacteristic(
     CHARACTERISTIC_UUID,
     NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY
   );
-  Serial.println("BLE: Characteristic created");
-  
+  Serial.println(F("BLE: Characteristic created"));
+
   characteristic->setCallbacks(new ConfigCallbacks());
-  Serial.println("BLE: Callbacks set");
-  
+  Serial.println(F("BLE: Callbacks set"));
+
   service->start();
-  Serial.println("BLE: Service started");
-  
+  Serial.println(F("BLE: Service started"));
+
   NimBLEAdvertising *advertising = NimBLEDevice::getAdvertising();
   advertising->addServiceUUID(SERVICE_UUID);
   advertising->setScanResponse(true);
-  advertising->setMinInterval(32); // 20ms
-  advertising->setMaxInterval(160); // 100ms
-  Serial.println("BLE: Starting advertising...");
+  advertising->setMinInterval(32);   // 20 ms
+  advertising->setMaxInterval(160);  // 100 ms
+  Serial.println(F("BLE: Starting advertising..."));
   NimBLEDevice::startAdvertising();
-  Serial.println("BLE: Advertising started - device should be discoverable");
+  Serial.println(F("BLE: Advertising started – device should be discoverable"));
 
-  String storedSsid = prefs.getString("ssid", "");
-    if (!storedSsid.isEmpty()) connectWiFi();
-    String storedApiUrl = prefs.getString("apiUrl", "");
-    if (!storedApiUrl.isEmpty()) apiUrlSet = true;
+  // Try to connect Wi‑Fi if we have credentials
+  if (ssidSet && passwordSet) connectWiFi();
 }
 
+// ------------------------------------------------------------------
+// Main loop
+// ------------------------------------------------------------------
 void loop() {
   unsigned long now = millis();
-  
-  // Wi-Fi reconnect check
-  if (WiFi.status() != WL_CONNECTED && now - lastWiFiAttempt >= WIFI_RETRY_INTERVAL) {
-    lastWiFiAttempt = now;
+
+  // Periodic Wi‑Fi reconnect (if we have credentials)
+  if (ssidSet && passwordSet && WiFi.status() != WL_CONNECTED &&
+      now - lastFetch > 10000) {   // retry every 10 s if disconnected
+    lastFetch = now;
     connectWiFi();
   }
 
-  // Only cycle stations if we have at least one configured
-  bool hasStations = false;
-  for (int i = 0; i < MAX_STATIONS; i++) {
-    if (stationSet[i]) {
-      hasStations = true;
-      break;
-    }
-  }
-  
-  if (WiFi.status() == WL_CONNECTED && hasStations && now - lastStationChange >= STATION_SWITCH_INTERVAL) {
-    lastStationChange = now;
-    selectNextStation();
-  }
-  
-  // Periodic status update every 60 seconds
-  static unsigned long lastStatusUpdate = 0;
-  if (now - lastStatusUpdate >= 60000) {
-    lastStatusUpdate = now;
-    
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.println(F("Status: WiFi connected, waiting for station cycle"));
-    } else {
-      Serial.println(F("Status: WiFi disconnected, attempting to reconnect..."));
-    }
-  }
-
-  // Execute any pending HTTP fetch
-  if (pendingFetch && WiFi.status() == WL_CONNECTED) {
-    getTransitData(pendingStation);
-    pendingFetch = false;
+  // Fetch BART predictions at the defined interval
+  if (stationSet && WiFi.status() == WL_CONNECTED &&
+      now - lastFetch >= FETCH_INTERVAL) {
+    lastFetch = now;
+    fetchAndPrintBART();
   }
 
   delay(10);
