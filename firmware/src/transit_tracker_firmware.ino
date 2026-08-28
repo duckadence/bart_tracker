@@ -211,13 +211,64 @@ void getTransitData(const String &station) {
 
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
-      // Stream payload directly to Serial to avoid large String allocation
-      WiFiClient *stream = http.getStreamPtr();
-      while (stream->connected() && stream->available()) {
-        char c = stream->read();
-        Serial.write(c);
+      // Read response into a String (response is small, ~2KB)
+      String response;
+      while (http.connected() && (http.available() || http.getStreamPtr()->available())) {
+        response += (char)http.getStreamPtr()->read();
       }
-      Serial.println();
+      
+      // Parse XML for station abbr and estimates
+      int stationStart = response.indexOf("<station>");
+      if (stationStart >= 0) {
+        int abbrStart = response.indexOf("<abbr>", stationStart);
+        int abbrEnd = response.indexOf("</abbr>", abbrStart);
+        if (abbrStart >= 0 && abbrEnd > abbrStart) {
+          String abbr = response.substring(abbrStart + 5, abbrEnd);
+          Serial.print(F("Station: "));
+          Serial.println(abbr);
+        }
+        
+        // Find all <etd> blocks
+        int etdPos = response.indexOf("<etd>", stationStart);
+        while (etdPos >= 0) {
+          int destStart = response.indexOf("<destination>", etdPos);
+          int destEnd = response.indexOf("</destination>", destStart);
+          String destination = "";
+          if (destStart >= 0 && destEnd > destStart) {
+            destination = response.substring(destStart + 12, destEnd);
+          }
+          
+          int estimatePos = response.indexOf("<estimate>", etdPos);
+          while (estimatePos >= 0 && estimatePos < response.indexOf("</etd>", etdPos)) {
+            int minutesStart = response.indexOf("<minutes>", estimatePos);
+            int minutesEnd = response.indexOf("</minutes>", minutesStart);
+            int directionStart = response.indexOf("<direction>", estimatePos);
+            int directionEnd = response.indexOf("</direction>", directionStart);
+            String minutes = "-";
+            String direction = "";
+            if (minutesStart >= 0 && minutesEnd > minutesStart) {
+              minutes = response.substring(minutesStart + 8, minutesEnd);
+            }
+            if (directionStart >= 0 && directionEnd > directionStart) {
+              direction = response.substring(directionStart + 10, directionEnd);
+            }
+            Serial.print(destination);
+            Serial.print(F(" | "));
+            Serial.print(direction);
+            Serial.print(F(" | "));
+            Serial.print(minutes);
+            Serial.println(F(" min"));
+            
+            estimatePos = response.indexOf("<estimate>", estimatePos + 1);
+          }
+          
+          etdPos = response.indexOf("<etd>", etdPos + 1);
+        }
+      } else {
+        // Fallback: just print raw response
+        Serial.println(response);
+      }
+      Serial.println(); // blank line after each fetch
       lastApiFetch = now;
     }
   } else {
