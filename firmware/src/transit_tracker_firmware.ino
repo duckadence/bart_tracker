@@ -159,16 +159,16 @@ void getTransitData(const String &station) {
     return;
   }
 
-  String apiUrl = "";
+  String baseUrl = "";
   String apiKey = "";
   if (apiUrlSet) {
-    apiUrl = prefs.getString("apiUrl", "");
+    baseUrl = prefs.getString("apiUrl", "");
     apiKey = prefs.getString("apiKey", "");
   } else {
     // Fallback defaults for BART
     String provider = prefs.getString("provider", "");
     if (provider.equalsIgnoreCase("bart")) {
-      apiUrl = "https://api.bart.gov/api/etd.aspx?cmd=etd&orig=";
+      baseUrl = "https://api.bart.gov/api/etd.aspx?cmd=etd&orig=";
       apiKey = prefs.getString("apiKey", "MW9S-E7SL-26DU-VV8V"); // default key
     } else {
       // For other providers, we still need a URL; if not set, abort.
@@ -176,17 +176,31 @@ void getTransitData(const String &station) {
       return;
     }
   }
-  if (apiUrl.isEmpty()) {
+  if (baseUrl.isEmpty()) {
     Serial.println(F("No API URL set"));
     return;
   }
 
-  // Build final URL: we assume the user has set a valid URL via BLE
-  // that includes any necessary station and key parameters.
-  // For simplicity, we do not modify the URL here.
+  // Build request URL: append station and API key if needed
+  String requestUrl = baseUrl;
+  // Ensure we have a separator if needed
+  if (!baseUrl.endsWith("=") && !baseUrl.endsWith("&") && !baseUrl.endsWith("/")) {
+    requestUrl += station;
+  } else {
+    requestUrl += station;
+  }
+  if (!apiKey.isEmpty()) {
+    // Determine separator
+    if (requestUrl.endsWith("=") || requestUrl.endsWith("&")) {
+      requestUrl += apiKey;
+    } else {
+      requestUrl += "&key=" + apiKey;
+    }
+  }
+
   HTTPClient http;
   http.setTimeout(8000);
-  http.begin(apiUrl); // TODO: consider adding station and key if needed
+  http.begin(requestUrl);
   int httpCode = http.GET();
 
   if (httpCode > 0) {
