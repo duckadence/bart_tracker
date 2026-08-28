@@ -211,51 +211,13 @@ void getTransitData(const String &station) {
 
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
-      if (useBartFallback) {
-        // Parse JSON and print human-readable summary
-        StaticJsonDocument<8192> doc;
-        DeserializationError error = deserializeJson(doc, *http.getStreamPtr());
-        if (!error) {
-          const char* stationName = doc["root"]["station"][0]["name"] | "Unknown";
-          const char* abbr = doc["root"]["station"][0]["abbr"] | "???";
-          Serial.print(abbr);
-          Serial.print(F(": "));
-          JsonArray etds = doc["root"]["station"][0]["etd"];
-          for (JsonObject etd : etds) {
-            const char* dest = etd["destination"] | "";
-            JsonArray estimates = etd["estimate"];
-            for (JsonObject est : estimates) {
-              const char* minutes = est["minutes"] | "-";
-              const char* direction = est["direction"] | "";
-              Serial.print(dest);
-              Serial.print(F(" "));
-              Serial.print(direction);
-              Serial.print(F(" "));
-              Serial.print(minutes);
-              Serial.print(F("min "));
-            }
-          }
-          Serial.println();
-        } else {
-          Serial.print(F("JSON parse error: "));
-          Serial.println(error.c_str());
-          // Fallback to raw stream
-          WiFiClient *stream = http.getStreamPtr();
-          while (stream->connected() && stream->available()) {
-            char c = stream->read();
-            Serial.write(c);
-          }
-          Serial.println();
-        }
-      } else {
-        // Stream payload directly to Serial to avoid large String allocation
-        WiFiClient *stream = http.getStreamPtr();
-        while (stream->connected() && stream->available()) {
-          char c = stream->read();
-          Serial.write(c);
-        }
-        Serial.println();
+      // Stream payload directly to Serial to avoid large String allocation
+      WiFiClient *stream = http.getStreamPtr();
+      while (stream->connected() && stream->available()) {
+        char c = stream->read();
+        Serial.write(c);
       }
+      Serial.println();
       lastApiFetch = now;
     }
   } else {
