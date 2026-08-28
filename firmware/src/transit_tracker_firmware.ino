@@ -26,6 +26,8 @@ unsigned long lastWiFiAttempt = 0;
 int currentStation = -1;
 String currentStationCode;
 String cachedTransitData = "";
+bool pendingFetch = false;
+String pendingStation;
 
 // Function prototypes
 void connectWiFi();
@@ -76,10 +78,9 @@ class ConfigCallbacks : public NimBLECharacteristicCallbacks {
         Serial.print(F(" saved: "));
         Serial.println(stationCode);
         
-        // Force API fetch for this station if WiFi is connected
-        if (WiFi.status() == WL_CONNECTED) {
-          getTransitData(stationCode);
-        }
+        // Defer the HTTP request
+        pendingFetch   = true;
+        pendingStation = stationCode;
       }
     }
     else if (command == "CLEAR_STATIONS") {
@@ -119,7 +120,7 @@ void connectWiFi() {
   WiFi.begin(ssid.c_str(), password.c_str());
   unsigned long start = millis();
   
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 1000) {
     delay(250);
     Serial.print(F("."));
   }
@@ -184,19 +185,23 @@ void getTransitData(const String &station) {
   // that includes any necessary station and key parameters.
   // For simplicity, we do not modify the URL here.
   HTTPClient http;
+  http.setTimeout(8000);
   http.begin(apiUrl); // TODO: consider adding station and key if needed
   int httpCode = http.GET();
 
   if (httpCode > 0) {
-    String payload = http.getString();
-    Serial.printf("[HTTP] GET... code: %d\n", httpCode);
     if (httpCode == HTTP_CODE_OK) {
-      cachedTransitData = payload;
-      Serial.println(cachedTransitData);
+      // Stream payload directly to Serial to avoid large String allocation
+      WiFiClient *stream = http.getStreamPtr();
+      while (stream->connected() && stream->available()) {
+        char c = stream->read();
+        Serial.write(c);
+      }
+      Serial.println();
       lastApiFetch = now;
     }
   } else {
-    Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    Serial.printf("[HTTP] GET failed, error: %s\n", http.errorToString(httpCode).c_str());
   }
   http.end();
 }
@@ -207,10 +212,9 @@ void selectNextStation() {
   currentStation = next;
   currentStationCode = getStation(currentStation + 1);
   
-  // Always fetch fresh data when switching to a new station
-  if (WiFi.status() == WL_CONNECTED) {
-    getTransitData(currentStationCode);
-  }
+  // Defer the HTTP request
+  pendingFetch   = true;
+  pendingStation = currentStationCode;
 }
 
 void setup() {
@@ -290,6 +294,12 @@ void loop() {
       Serial.println(F("Status: WiFi disconnected, attempting to reconnect..."));
     }
   }
-  
+
+  // Execute any pending HTTP fetch
+  if (pendingFetch && WiFi.status() == WL_CONNECTED) {
+    getTransitData(pendingStation);
+    pendingFetch = false;
+  }
+
   delay(10);
 }
